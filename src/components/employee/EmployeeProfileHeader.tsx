@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { StatusBadge } from "@/components/employee/StatusBadge";
 import { cn } from "@/lib/util";
 import type { Employee } from "@/types/employee";
+import { Avatar } from "@/components/ui/Avatar";
 
 interface EmployeeProfileHeaderProps {
     employee: Employee;
@@ -36,9 +37,11 @@ function EmployeeProfileHeader({
             <div className="flex flex-col gap-4 rounded-xl border border-neutral/15 bg-base-white p-6 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-4">
                     {/* Avatar */}
-                    <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-primary-tint font-heading text-xl font-bold text-primary-dark">
-                        {getInitials(employee.name)}
-                    </div>
+                    <Avatar
+                        initials={getInitials(employee.name)}
+                        src={employee.avatar}
+                        size="xl"
+                    />
 
                     {/* Info */}
                     <div className="flex flex-col gap-1">

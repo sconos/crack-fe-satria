@@ -1,13 +1,27 @@
 export type LeaveStatus = "Approved" | "Pending" | "Rejected";
-export type LeaveType = "Annual" | "Sick" | "Emergency" | "Unpaid";
 
 export interface LeaveRequest {
     id: string;
-    type: LeaveType;
+    employeeId: string;
+    type: string;
     startDate: string;
     endDate: string;
     days: number;
     reason: string;
     status: LeaveStatus;
     appliedDate: string;
+}
+
+export interface LeaveTypeConfig {
+    id: string;
+    name: string;
+    defaultAllocation: number;
+    isPaid: boolean;
+    isActive: boolean;
+}
+
+export interface PublicHoliday {
+    id: string;
+    name: string;
+    date: string; 
 }

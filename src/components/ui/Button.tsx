@@ -10,13 +10,13 @@ const base =
 
 const variants: Record<ButtonVariant, string> = {
     primary:
-        "bg-primary text-based-white hover:bg-primary-dark focus-visible:ring-primary",
+        "bg-primary text-base-white hover:bg-primary-dark focus-visible:ring-primary",
     secondary:
-        "bg-secondary text-based-white hover:bg-secondary/90 focus-visible:ring-secondary",
+        "bg-secondary text-base-white hover:bg-secondary/90 focus-visible:ring-secondary",
     outline:
         "border border-primary text-primary bg-transparent hover:bg-primary-tint focus-visible:ring-primary",
     ghost: "text-primary bg-transparent hover:bg-primary-tint focus-visible:ring-primary",
-    danger: "bg-danger text-based-white hover:bg-danger/90 focus-visible:ring-danger",
+    danger: "bg-danger text-base-white hover:bg-danger/90 focus-visible:ring-danger",
 };
 
 const sizes: Record<ButtonSize, string> = {

@@ -36,7 +36,7 @@ export function ProfileHeader({ employee }: { employee: EmployeeProfile }) {
 
             <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
                 <div className="flex items-center gap-4">
-                    <Avatar initials={initialsOf(employee.name)} size="xl" />
+                    <Avatar initials={initialsOf(employee.name)} src={employee.avatar} size="xl" />
                     <div>
                         <div className="flex flex-wrap items-center gap-2">
                             <h1 className="font-heading text-2xl font-bold text-primary-dark">

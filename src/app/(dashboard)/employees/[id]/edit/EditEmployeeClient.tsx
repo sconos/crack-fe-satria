@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/dashboard/PageHeader";
 import { Card, CardContent } from "@/components/ui/Card";
 import {
     EmployeeForm,
+    EmployeeFormSubmitValues,
     type EmployeeFormValues,
 } from "@/components/employee/EmployeeForm";
 import type { Employee } from "@/types/employee";
@@ -17,7 +18,7 @@ interface EditEmployeeClientProps {
 export function EditEmployeeClient({ employee }: EditEmployeeClientProps) {
     const router = useRouter();
 
-    async function handleSubmit(values: EmployeeFormValues) {
+    async function handleSubmit(values: EmployeeFormSubmitValues) {
         // TODO: replace with real API call
         await new Promise((resolve) => setTimeout(resolve, 800));
         console.log("Updated employee:", values);

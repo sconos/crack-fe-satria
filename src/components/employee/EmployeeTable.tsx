@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Search, Pencil, Trash2, Eye } from "lucide-react";
+import { Search, Pencil, Eye, UserX, RotateCcw } from "lucide-react";
 import {
     Table,
     TableHeader,
@@ -19,11 +19,12 @@ import { Select } from "@/components/ui/Select";
 import { Button } from "@/components/ui/Button";
 import { StatusBadge } from "@/components/employee/StatusBadge";
 import { cn } from "@/lib/util";
+import { Avatar } from "@/components/ui/Avatar";
 import type { Employee, EmployeeStatus } from "@/types/employee";
 
 interface EmployeeTableProps {
     employees: Employee[];
-    onDelete?: (id: string) => void;
+    onToggleStatus?: (id: string) => void;
 }
 
 type SortField = "name" | "department" | "joinDate";
@@ -42,7 +43,7 @@ function getInitials(name: string) {
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-function EmployeeTable({ employees, onDelete }: EmployeeTableProps) {
+function EmployeeTable({ employees, onToggleStatus  }: EmployeeTableProps) {
     const [search, setSearch] = React.useState("");
     const [statusFilter, setStatusFilter] = React.useState("");
     const [sortField, setSortField] = React.useState<SortField | null>(null);
@@ -164,9 +165,11 @@ function EmployeeTable({ employees, onDelete }: EmployeeTableProps) {
                                 {/* Employee */}
                                 <TableCell>
                                     <div className="flex items-center gap-3">
-                                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-tint font-heading text-xs font-semibold text-primary-dark">
-                                            {getInitials(employee.name)}
-                                        </div>
+                                        <Avatar
+                                            initials={getInitials(employee.name)}
+                                            src={employee.avatar}
+                                            size="sm"
+                                        />
                                         <div className="flex flex-col">
                                             <span className="font-medium text-primary-dark">
                                                 {employee.name}
@@ -233,19 +236,35 @@ function EmployeeTable({ employees, onDelete }: EmployeeTableProps) {
                                                 </span>
                                             </Button>
                                         </Link>
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="h-8 w-8 p-0 hover:bg-danger/10 hover:text-danger"
-                                            onClick={() =>
-                                                onDelete?.(employee.id)
-                                            }
-                                        >
-                                            <Trash2 className="h-4 w-4" />
-                                            <span className="sr-only">
-                                                Delete {employee.name}
-                                            </span>
-                                        </Button>
+                                        {employee.status === "Inactive" ? (
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-8 w-8 p-0 hover:bg-success/10 hover:text-success"
+                                                onClick={() =>
+                                                    onToggleStatus?.(employee.id)
+                                                }
+                                            >
+                                                <RotateCcw className="h-4 w-4" />
+                                                <span className="sr-only">
+                                                    Reactivate {employee.name}
+                                                </span>
+                                            </Button>
+                                        ) : (
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-8 w-8 p-0 hover:bg-danger/10 hover:text-danger"
+                                                onClick={() =>
+                                                    onToggleStatus?.(employee.id)
+                                                }
+                                            >
+                                                <UserX className="h-4 w-4" />
+                                                <span className="sr-only">
+                                                    Deactivate {employee.name}
+                                                </span>
+                                            </Button>
+                                        )}
                                     </div>
                                 </TableCell>
                             </TableRow>

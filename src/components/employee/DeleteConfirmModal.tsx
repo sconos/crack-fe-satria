@@ -11,6 +11,9 @@ interface DeleteConfirmModalProps {
     employeeName: string;
     onConfirm: () => void;
     isDeleting?: boolean;
+    description?: string;
+    confirmLabel?: string;
+    confirmVariant?: "danger" | "primary" | "outline";
 }
 
 function DeleteConfirmModal({
@@ -19,6 +22,9 @@ function DeleteConfirmModal({
     employeeName,
     onConfirm,
     isDeleting,
+    description = "This action can't be undone. All records for this employee will be permanently removed.",
+    confirmLabel = "Delete Employee",
+    confirmVariant = "danger",
 }: DeleteConfirmModalProps) {
     React.useEffect(() => {
         if (open) {
@@ -69,8 +75,7 @@ function DeleteConfirmModal({
                         Delete {employeeName}?
                     </h2>
                     <p className="font-body text-sm text-neutral">
-                        This action can&apos;t be undone. All records for this
-                        employee will be permanently removed.
+                        {description}
                     </p>
                 </div>
 
@@ -84,11 +89,11 @@ function DeleteConfirmModal({
                         Cancel
                     </Button>
                     <Button
-                        variant="danger"
+                        variant={confirmVariant}
                         loading={isDeleting}
                         onClick={onConfirm}
                     >
-                        Delete Employee
+                        {confirmLabel}
                     </Button>
                 </div>
             </div>

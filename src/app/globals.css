@@ -1,51 +1,49 @@
 @import "tailwindcss";
 
 :root {
-  :root {
-  /* Brand greens */
-  --color-primary: #15803D;
-  --color-primary-dark: #14532D;
-  --color-primary-tint: #F0FAF4;
+    /* Brand greens */
+    --color-primary: #15803d;
+    --color-primary-dark: #14532d;
+    --color-primary-tint: #f0faf4;
 
-  /* Accents */
-  --color-secondary: #0891B2;
-  --color-success: #059669;
-  --color-warning: #F59E0B;
-  --color-warning-dark: #D97706;
-  --color-danger: #E11D48;
+    /* Accents */
+    --color-secondary: #0891b2;
+    --color-success: #059669;
+    --color-warning: #f59e0b;
+    --color-warning-dark: #d97706;
+    --color-danger: #e11d48;
 
-  /* Neutrals */
-  --color-neutral: #6B7280;
-  --color-base-white: #FFFFFF;
+    /* Neutrals */
+    --color-neutral: #6b7280;
+    --color-base-white: #ffffff;
 
-  /* Fonts */
-  --font-heading: var(--font-manrope);
-  --font-body: var(--font-inter);
-}
+    /* Fonts */
+    --font-heading: var(--font-manrope);
+    --font-body: var(--font-inter);
 }
 
 @theme inline {
-  /* Brand greens */
-  --color-primary: #15803D;
-  --color-primary-dark: #14532D;
-  --color-primary-tint: #F0FAF4;
+    /* Brand greens */
+    --color-primary: #15803d;
+    --color-primary-dark: #14532d;
+    --color-primary-tint: #f0faf4;
 
-  /* Accents */
-  --color-secondary: #0891B2;
-  --color-success: #059669;
-  --color-warning: #F59E0B;
-  --color-warning-dark: #D97706;
-  --color-danger: #E11D48;
+    /* Accents */
+    --color-secondary: #0891b2;
+    --color-success: #059669;
+    --color-warning: #f59e0b;
+    --color-warning-dark: #d97706;
+    --color-danger: #e11d48;
 
-  /* Neutrals */
-  --color-neutral: #6B7280;
-  --color-base-white: #FFFFFF;
+    /* Neutrals */
+    --color-neutral: #6b7280;
+    --color-base-white: #ffffff;
 
-  /* Fonts */
-  --font-heading: var(--font-manrope);
-  --font-body: var(--font-inter);
+    /* Fonts */
+    --font-heading: var(--font-manrope);
+    --font-body: var(--font-inter);
 }
 
 body {
-  @apply font-body bg-primary-tint text-neutral;
+    @apply font-body bg-primary-tint text-neutral;
 }

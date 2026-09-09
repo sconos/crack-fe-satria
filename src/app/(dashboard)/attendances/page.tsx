@@ -5,6 +5,7 @@ import { Search } from "lucide-react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { Card, CardContent } from "@/components/ui/Card";
+import { StatCard } from "@/components/ui/StatCard";
 import {
     Table,
     TableHeader,
@@ -177,27 +178,6 @@ const initialApprovals: CorrectionRequest[] = [
         reason: "Worked from the Surabaya office, no badge access there yet.",
     },
 ];
-
-function StatCard({
-    label,
-    value,
-    accent,
-}: {
-    label: string;
-    value: string;
-    accent: string;
-}) {
-    return (
-        <Card className={cn("border-l-4", accent)}>
-            <CardContent>
-                <p className="font-heading text-2xl font-bold text-primary-dark">
-                    {value}
-                </p>
-                <p className="mt-1 text-xs text-neutral">{label}</p>
-            </CardContent>
-        </Card>
-    );
-}
 
 function Avatar({ initials }: { initials: string }) {
     return (

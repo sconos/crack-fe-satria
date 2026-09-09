@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, ChevronRight, ListChecks, DollarSign, LogOut } from "lucide-react";
+import { LayoutDashboard, Users, ChevronRight, ListChecks, DollarSign, Settings, FileBarChart, LogOut } from "lucide-react";
 import { cn } from "@/lib/util";
 
 const navItems = [
@@ -12,6 +12,8 @@ const navItems = [
     { label: "Employees", href: "/employees", icon: Users },
     { label: "Attendances", href: "/attendances", icon: ListChecks },
     { label: "Payroll", href: "/payroll", icon: DollarSign },
+    { label: "Reports", href: "/reports", icon: FileBarChart },
+    { label: "Settings", href: "/settings", icon: Settings },
 ];
 
 function Sidebar() {

@@ -9,24 +9,37 @@ import {
     User,
     Receipt,
     CalendarDays,
+    Clock,
+    FileText,
+    Users,
+    Network,
     LogOut,
     ChevronRight,
     X,
 } from "lucide-react";
 import { cn } from "@/lib/util";
+import { Avatar } from "@/components/ui/Avatar";
+import { getEmployeeById } from "@/lib/mock-data/employees";
 
 const navItems = [
     { label: "Dashboard", href: "/portal", icon: LayoutDashboard },
     { label: "My Profile", href: "/portal/profile", icon: User },
+    { label: "My Attendance", href: "/portal/attendance", icon: Clock },
+    { label: "My Documents", href: "/portal/documents", icon: FileText },
     { label: "Pay Slips", href: "/portal/payslips", icon: Receipt },
     { label: "Leave", href: "/portal/leave", icon: CalendarDays },
+    { label: "Directory", href: "/portal/directory", icon: Users },
+    { label: "Org Chart", href: "/portal/org-chart", icon: Network },
 ];
 
-const currentEmployee = {
-    name: "Satria Wijaya",
-    role: "Frontend Developer",
-    initials: "SW",
-};
+// TODO: replace with the logged-in user's id once auth/session is wired up
+const CURRENT_EMPLOYEE_ID = "1";
+
+function getInitials(name: string) {
+    const parts = name.trim().split(/\s+/);
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
 
 interface PortalSidebarProps {
     isOpen: boolean;
@@ -35,6 +48,7 @@ interface PortalSidebarProps {
 
 function SidebarContent({ onClose }: { onClose?: () => void }) {
     const pathname = usePathname();
+    const employee = getEmployeeById(CURRENT_EMPLOYEE_ID);
 
     return (
         <aside className="flex h-screen w-60 flex-col border-r border-neutral/15 bg-base-white">
@@ -63,21 +77,25 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
             </div>
 
             {/* Employee card */}
+            {employee && (
             <div className="mx-3 mt-3 rounded-lg bg-primary-tint px-3 py-3">
                 <div className="flex items-center gap-2">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary font-heading text-xs font-bold text-base-white">
-                        {currentEmployee.initials}
-                    </div>
+                    <Avatar
+                        initials={getInitials(employee.name)}
+                        src={employee.avatar}
+                        size="sm"
+                    />
                     <div className="min-w-0">
                         <p className="truncate font-heading text-xs font-bold text-primary-dark">
-                            {currentEmployee.name}
+                            {employee.name}
                         </p>
                         <p className="truncate font-body text-xs text-neutral">
-                            {currentEmployee.role}
+                            {employee.role}
                         </p>
                     </div>
                 </div>
             </div>
+            )}
 
             {/* Nav */}
             <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-4">

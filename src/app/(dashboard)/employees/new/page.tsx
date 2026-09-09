@@ -6,17 +6,17 @@ import { PageHeader } from "@/components/dashboard/PageHeader";
 import { Card, CardContent } from "@/components/ui/Card";
 import {
     EmployeeForm,
-    type EmployeeFormValues,
+    type EmployeeFormSubmitValues,
 } from "@/components/employee/EmployeeForm";
 
 export default function NewEmployeePage() {
     const router = useRouter();
 
-    async function handleSubmit(values: EmployeeFormValues) {
+    async function handleSubmit(values: EmployeeFormSubmitValues) {
         // TODO: replace with real API call e.g. await createEmployee(values)
         await new Promise((resolve) => setTimeout(resolve, 800));
         console.log("New employee:", values);
-        router.push("/employees");
+        router.push("/employees?tab=employees");
     }
 
     return (

@@ -112,7 +112,9 @@ export function EmployeeProfileClient({
                         onReject={handleReject}
                     />
                 )}
-                {tab === "documents" && <ProfileDocumentsTab />}
+                {tab === "documents" && (
+                    <ProfileDocumentsTab employeeId={employee.id} />
+                )}
             </div>
         </DashboardLayout>
     );

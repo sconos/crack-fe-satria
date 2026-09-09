@@ -5,7 +5,7 @@ import { Play } from "lucide-react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { Button } from "@/components/ui/Button";
-import { Card, CardContent } from "@/components/ui/Card";
+import { PayrollStatCard } from "@/components/payroll/PayrollStatCard";
 import {
     Table,
     TableHeader,
@@ -156,25 +156,25 @@ export default function PayrollPage() {
         {
             label: "Total payroll",
             value: formatRupiah(totalPayroll),
-            color: "text-primary-dark",
+            accent: "border-l-neutral/30",
         },
         {
             label: "Paid",
             value: formatRupiah(totalPaid),
             sub: `${paidRecords.length} employees`,
-            color: "text-success",
+            accent: "border-l-success",
         },
         {
             label: "Processing",
             value: processingCount,
             sub: "Awaiting approval",
-            color: "text-secondary",
+            accent: "border-l-secondary",
         },
         {
             label: "Pending",
             value: pendingCount,
             sub: "Awaiting review",
-            color: "text-neutral",
+            accent: "border-l-neutral/30",
         },
     ];
 
@@ -204,23 +204,13 @@ export default function PayrollPage() {
                 {/* Stats */}
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                     {statCards.map((s) => (
-                        <Card key={s.label}>
-                            <CardContent className="px-4 py-4">
-                                <p className="font-body text-xs text-neutral">
-                                    {s.label}
-                                </p>
-                                <p
-                                    className={`font-heading mt-1 text-xl font-bold ${s.color}`}
-                                >
-                                    {s.value}
-                                </p>
-                                {s.sub && (
-                                    <p className="font-body mt-0.5 text-xs text-neutral">
-                                        {s.sub}
-                                    </p>
-                                )}
-                            </CardContent>
-                        </Card>
+                        <PayrollStatCard
+                            key={s.label}
+                            label={s.label}
+                            value={s.value}
+                            sub={s.sub}
+                            accent={s.accent}
+                        />
                     ))}
                 </div>
 

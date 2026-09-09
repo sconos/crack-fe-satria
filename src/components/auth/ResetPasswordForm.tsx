@@ -1,45 +1,42 @@
 "use client";
 
 import * as React from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { FormField } from "@/components/ui/FormField";
-import { Input } from "@/components/ui/Input";
 import { PasswordInput } from "@/components/ui/PasswordInput";
 import { Button } from "@/components/ui/Button";
+import { Alert } from "@/components/ui/Alert";
 import { toast } from "@/components/ui/Toast";
-import {
-    validateEmail,
-    validatePassword,
-    validateRequired,
-} from "@/lib/validation";
+import { validatePassword } from "@/lib/validation";
 
-interface RegisterValues {
-    fullName: string;
-    email: string;
+interface ResetPasswordValues {
     password: string;
     confirmPassword: string;
 }
 
-type RegisterErrors = Partial<Record<keyof RegisterValues, string>>;
+type ResetPasswordErrors = Partial<Record<keyof ResetPasswordValues, string>>;
 
-export function RegisterForm() {
-    const [values, setValues] = React.useState<RegisterValues>({
-        fullName: "",
-        email: "",
+export function ResetPasswordForm() {
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    const token = searchParams.get("token");
+
+    const [values, setValues] = React.useState<ResetPasswordValues>({
         password: "",
         confirmPassword: "",
     });
-    const [errors, setErrors] = React.useState<RegisterErrors>({});
+    const [errors, setErrors] = React.useState<ResetPasswordErrors>({});
     const [isSubmitting, setIsSubmitting] = React.useState(false);
+    const [success, setSuccess] = React.useState(false);
 
-    function handleChange(field: keyof RegisterValues, value: string) {
+    function handleChange(field: keyof ResetPasswordValues, value: string) {
         setValues((prev) => ({ ...prev, [field]: value }));
         setErrors((prev) => ({ ...prev, [field]: undefined }));
     }
 
     function validate(): boolean {
-        const next: RegisterErrors = {
-            fullName: validateRequired(values.fullName, "Full name"),
-            email: validateEmail(values.email),
+        const next: ResetPasswordErrors = {
             password: validatePassword(values.password),
             confirmPassword: !values.confirmPassword
                 ? "Please confirm your password"
@@ -48,7 +45,7 @@ export function RegisterForm() {
                   : undefined,
         };
         setErrors(next);
-        return Object.values(next).every((v) => !v);
+        return !next.password && !next.confirmPassword;
     }
 
     async function handleSubmit(e: React.FormEvent) {
@@ -57,49 +54,47 @@ export function RegisterForm() {
 
         setIsSubmitting(true);
         try {
-            // TODO: replace with real register call
+            // TODO: replace with a real POST /auth/reset-password call,
+            // sending { token, password: values.password }
             await new Promise((resolve) => setTimeout(resolve, 800));
-            toast.success("Account created — welcome to Koru HRM!");
+            setSuccess(true);
         } catch {
-            toast.error("Couldn't create your account. Try again.");
+            toast.error("Couldn't reset your password. Try again.");
         } finally {
             setIsSubmitting(false);
         }
     }
 
+    if (!token) {
+        return (
+            <Alert variant="danger" title="Invalid or expired link">
+                This password reset link is missing or no longer valid.
+                Request a new one from the{" "}
+                <Link href="/forgot-password" className="underline">
+                    forgot password
+                </Link>{" "}
+                page.
+            </Alert>
+        );
+    }
+
+    if (success) {
+        return (
+            <div className="flex flex-col gap-4">
+                <Alert variant="success" title="Password updated">
+                    You can now sign in with your new password.
+                </Alert>
+                <Button onClick={() => router.push("/login")}>
+                    Go to login
+                </Button>
+            </div>
+        );
+    }
+
     return (
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <FormField
-                label="Full name"
-                htmlFor="fullName"
-                required
-                error={errors.fullName}
-            >
-                <Input
-                    id="fullName"
-                    error={!!errors.fullName}
-                    value={values.fullName}
-                    onChange={(e) => handleChange("fullName", e.target.value)}
-                />
-            </FormField>
-
-            <FormField
-                label="Email"
-                htmlFor="email"
-                required
-                error={errors.email}
-            >
-                <Input
-                    id="email"
-                    type="email"
-                    error={!!errors.email}
-                    value={values.email}
-                    onChange={(e) => handleChange("email", e.target.value)}
-                />
-            </FormField>
-
-            <FormField
-                label="Password"
+                label="New password"
                 htmlFor="password"
                 required
                 error={errors.password}
@@ -113,7 +108,7 @@ export function RegisterForm() {
             </FormField>
 
             <FormField
-                label="Confirm password"
+                label="Confirm new password"
                 htmlFor="confirmPassword"
                 required
                 error={errors.confirmPassword}
@@ -129,7 +124,7 @@ export function RegisterForm() {
             </FormField>
 
             <Button type="submit" loading={isSubmitting} className="mt-1">
-                Create account
+                Reset password
             </Button>
         </form>
     );

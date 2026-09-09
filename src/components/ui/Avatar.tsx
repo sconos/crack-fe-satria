@@ -12,10 +12,26 @@ const sizes: Record<AvatarSize, string> = {
 
 export interface AvatarProps extends React.HTMLAttributes<HTMLSpanElement> {
     initials: string;
+    src?: string | null;
     size?: AvatarSize;
 }
 
-function Avatar({ initials, size = "md", className, ...props }: AvatarProps) {
+function Avatar({ initials, src, size = "md", className, ...props }: AvatarProps) {
+    if (src) {
+        return (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+                src={src}
+                alt={initials}
+                className={cn(
+                    "shrink-0 rounded-full object-cover ring-1 ring-inset ring-primary/10",
+                    sizes[size].replace(/text-\S+/, ""), // strip the text-size class, irrelevant for an <img>
+                    className,
+                )}
+                {...(props as React.ImgHTMLAttributes<HTMLImageElement>)}
+            />
+        );
+    }
     return (
         <span
             className={cn(

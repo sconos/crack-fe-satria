@@ -6,7 +6,7 @@ export interface PayrollRecord {
     employeeName: string;
     department: string;
     role: string;
-    period: string; // "YYYY-MM" format
+    period: string;
     baseSalary: number;
     allowances: number;
     deductions: number;

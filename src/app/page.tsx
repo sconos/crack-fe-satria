@@ -275,7 +275,7 @@ export default function Home() {
                 <section id="features" className="mx-auto max-w-6xl px-6 py-24">
                     <div className="max-w-xl">
                         <p className="text-xs font-medium uppercase tracking-wide text-secondary">
-                            What's inside
+                            What&apos;s inside
                         </p>
                         <h2 className="mt-3 font-heading text-3xl font-bold tracking-tight text-primary-dark">
                             Four modules, one shared record

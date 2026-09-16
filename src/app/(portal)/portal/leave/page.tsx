@@ -61,6 +61,7 @@ export default function PortalLeavePage() {
     }
 
     React.useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- known FP on async fetch fns
         loadAll();
     }, []);
 

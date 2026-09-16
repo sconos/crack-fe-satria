@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
     Modal,
     ModalHeader,
@@ -36,14 +36,18 @@ export function LeaveTypeModal({
     const [isPaid, setIsPaid] = useState("paid");
     const [errors, setErrors] = useState<Record<string, string>>({});
 
-    useEffect(() => {
-        if (open) {
+    const [resetKey, setResetKey] = useState<string | null>(null);
+    const currentKey = open ? initialValues?.id ?? "new" : null;
+
+    if (currentKey !== resetKey) {
+        setResetKey(currentKey);
+        if (currentKey) {
             setName(initialValues?.name ?? "");
             setAllocation(String(initialValues?.defaultAllocation ?? 12));
             setIsPaid(initialValues?.isPaid === false ? "unpaid" : "paid");
             setErrors({});
         }
-    }, [open, initialValues]);
+    }
 
     function handleSubmit() {
         const nextErrors: Record<string, string> = {};

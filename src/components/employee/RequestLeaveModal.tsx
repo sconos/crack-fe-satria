@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
     Modal,
     ModalHeader,
@@ -46,14 +46,10 @@ export function RequestLeaveModal({
     const [reason, setReason] = useState("");
     const [errors, setErrors] = useState<Record<string, string>>({});
 
-    useEffect(() => {
-        if (!leaveTypeId && leaveTypes.length > 0) {
-            setLeaveTypeId(leaveTypes[0].id);
-        }
-    }, [leaveTypes, leaveTypeId]);
+    const selectedLeaveTypeId = leaveTypeId || leaveTypes[0]?.id || "";
 
     function reset() {
-        setLeaveTypeId(leaveTypes[0]?.id ?? "");
+        setLeaveTypeId("");
         setStartDate("");
         setEndDate("");
         setReason("");
@@ -67,7 +63,7 @@ export function RequestLeaveModal({
 
     function handleSubmit() {
         const nextErrors: Record<string, string> = {};
-        if (!leaveTypeId) nextErrors.leaveTypeId = "Pick a leave type.";
+        if (!selectedLeaveTypeId) nextErrors.leaveTypeId = "Pick a leave type.";
         if (!startDate) nextErrors.startDate = "Pick a start date.";
         if (!endDate) nextErrors.endDate = "Pick an end date.";
         if (startDate && endDate && endDate < startDate) {
@@ -80,7 +76,7 @@ export function RequestLeaveModal({
             return;
         }
 
-        onSubmit({ leaveTypeId, startDate, endDate, reason: reason.trim() });
+        onSubmit({ leaveTypeId: selectedLeaveTypeId, startDate, endDate, reason: reason.trim() });
     }
 
     return (
@@ -101,7 +97,7 @@ export function RequestLeaveModal({
                 >
                     <Select
                         id="leave-type"
-                        value={leaveTypeId}
+                        value={selectedLeaveTypeId}
                         onChange={(e) => setLeaveTypeId(e.target.value)}
                         error={!!errors.leaveTypeId}
                     >

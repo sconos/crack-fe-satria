@@ -15,6 +15,7 @@ function Modal({ open, onOpenChange, children }: ModalProps) {
     const [mounted, setMounted] = React.useState(false);
 
     React.useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional SSR mount flag
         setMounted(true);
     }, []);
 

@@ -19,7 +19,7 @@ import { Select } from "@/components/ui/Select";
 import { Button } from "@/components/ui/Button";
 import { StatusBadge } from "@/components/employee/StatusBadge";
 import { Avatar } from "@/components/ui/Avatar";
-import type { Employee, EmployeeStatus } from "@/types/employee";
+import type { Employee } from "@/types/employee";
 
 interface EmployeeTableProps {
     employees: Employee[];
@@ -88,8 +88,8 @@ function EmployeeTable({ employees, onToggleStatus  }: EmployeeTableProps) {
         // sort
         if (sortField && sortDirection) {
             result.sort((a, b) => {
-                let aVal = a[sortField];
-                let bVal = b[sortField];
+                const aVal = a[sortField];
+                const bVal = b[sortField];
                 const cmp = aVal.localeCompare(bVal);
                 return sortDirection === "asc" ? cmp : -cmp;
             });

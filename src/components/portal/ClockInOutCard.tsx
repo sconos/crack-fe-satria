@@ -35,10 +35,9 @@ export function ClockInOutCard({
     onClockOut: () => void | Promise<void>;
     isSubmitting?: boolean;
 }) {
-    const [now, setNow] = React.useState<Date | null>(null);
+    const [now, setNow] = React.useState(() => new Date());
 
     React.useEffect(() => {
-        setNow(new Date());
         const interval = setInterval(() => setNow(new Date()), 1000);
         return () => clearInterval(interval);
     }, []);

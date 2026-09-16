@@ -119,12 +119,14 @@ function EmployeeForm({
     const [isSubmitting, setIsSubmitting] = React.useState(false);
     const [formError, setFormError] = React.useState<string | null>(null);
 
+    const initialValueId = initialValues?.id;
+
     const excludedManagerIds = React.useMemo(() => {
-        if (!initialValues?.id) return new Set<string>();
-        const descendants = getDescendantIds(employees, initialValues.id);
-        descendants.add(initialValues.id);
+        if (!initialValueId) return new Set<string>();
+        const descendants = getDescendantIds(employees, initialValueId);
+        descendants.add(initialValueId);
         return descendants;
-    }, [employees, initialValues?.id]);
+    }, [employees, initialValueId]);
 
     function handleChange(field: keyof EmployeeFormValues, value: string) {
         setValues((prev) => ({ ...prev, [field]: value }));
@@ -154,7 +156,7 @@ function EmployeeForm({
         setIsSubmitting(true);
         try {
             await onSubmit({ ...values, avatar, managerId: managerId || null });
-        } catch (err) {
+        } catch {
             setFormError("Something went wrong. Please try again.");
         } finally {
             setIsSubmitting(false);

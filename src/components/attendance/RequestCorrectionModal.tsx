@@ -35,14 +35,18 @@ export function RequestCorrectionModal({
     const [reason, setReason] = React.useState("");
     const [error, setError] = React.useState<string | null>(null);
 
-    React.useEffect(() => {
-        if (open && record) {
+    const [resetKey, setResetKey] = React.useState<string | null>(null);
+    const currentKey = open ? record?.id ?? null : null;
+
+    if (currentKey !== resetKey) {
+        setResetKey(currentKey);
+        if (currentKey && record) {
             setClockIn(record.clockIn ?? "");
             setClockOut(record.clockOut ?? "");
             setReason("");
             setError(null);
         }
-    }, [open, record]);
+    }
 
     React.useEffect(() => {
         if (open) document.body.style.overflow = "hidden";
@@ -94,7 +98,7 @@ export function RequestCorrectionModal({
                             month: "long",
                             day: "numeric",
                         })}
-                        . HR will review before it's applied.
+                        . HR will review before it&apos;s applied.
                     </p>
                 </div>
 

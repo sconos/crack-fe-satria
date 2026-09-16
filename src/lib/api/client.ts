@@ -1,8 +1,13 @@
 // src/lib/api/client.ts
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
+interface ApiErrorBody {
+  message?: string;
+  errors?: Record<string, string[]>;
+}
+
 export class ApiError extends Error {
-  constructor(public status: number, public body: any, message: string) {
+  constructor(public status: number, public body: ApiErrorBody | null, message: string) {
     super(message);
   }
 }

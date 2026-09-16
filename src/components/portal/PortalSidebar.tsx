@@ -18,7 +18,6 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/util";
 import { Avatar } from "@/components/ui/Avatar";
-import { getEmployeeById } from "@/lib/mock-data/employees";
 import { useRouter } from "next/navigation";
 import { logout } from "@/lib/api/auth";
 import { useAuth } from "@/components/auth/AuthProvider";

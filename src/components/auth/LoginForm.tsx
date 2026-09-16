@@ -29,7 +29,6 @@ export function LoginForm() {
     const [errors, setErrors] = React.useState<LoginErrors>({});
     const { setUser } = useAuth();
     const router = useRouter();
-    const [serverError, setServerError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     function handleChange(field: keyof LoginValues, value: string) {

@@ -1,9 +1,11 @@
 "use client";
 
 import * as React from "react";
-import { X, Printer } from "lucide-react";
+import { X, Printer, Download } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { PayrollStatusBadge } from "./PayrollStatusBadge";
+import { downloadPayslip } from "@/lib/api/payroll";
+import { toast } from "@/components/ui/Toast";
 import type { PayrollRecord } from "@/types/payroll";
 import Image from "next/image";
 
@@ -35,6 +37,8 @@ function getInitials(name: string) {
 }
 
 function PaySlipModal({ open, onOpenChange, record }: PaySlipModalProps) {
+    const [isDownloading, setIsDownloading] = React.useState(false);
+
     React.useEffect(() => {
         if (open) document.body.style.overflow = "hidden";
         else document.body.style.overflow = "";
@@ -54,6 +58,18 @@ function PaySlipModal({ open, onOpenChange, record }: PaySlipModalProps) {
     if (!open || !record) return null;
 
     const totalEarnings = record.baseSalary + record.allowances;
+
+    async function handleDownload() {
+        if (!record) return;
+        setIsDownloading(true);
+        try {
+            await downloadPayslip(record.id, `payslip-${record.period}.pdf`);
+        } catch {
+            toast.error("Couldn't download the payslip. Try again.");
+        } finally {
+            setIsDownloading(false);
+        }
+    }
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
@@ -172,6 +188,14 @@ function PaySlipModal({ open, onOpenChange, record }: PaySlipModalProps) {
                         onClick={() => onOpenChange(false)}
                     >
                         Close
+                    </Button>
+                    <Button
+                        variant="outline"
+                        onClick={handleDownload}
+                        loading={isDownloading}
+                    >
+                        <Download className="h-4 w-4" />
+                        Download PDF
                     </Button>
                     <Button variant="primary" onClick={() => window.print()}>
                         <Printer className="h-4 w-4" />

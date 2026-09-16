@@ -18,7 +18,6 @@ import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Button } from "@/components/ui/Button";
 import { StatusBadge } from "@/components/employee/StatusBadge";
-import { cn } from "@/lib/util";
 import { Avatar } from "@/components/ui/Avatar";
 import type { Employee, EmployeeStatus } from "@/types/employee";
 

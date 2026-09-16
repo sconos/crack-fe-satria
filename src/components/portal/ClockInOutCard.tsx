@@ -5,9 +5,7 @@ import { Clock, LogIn, LogOut } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { AttendanceStatusBadge } from "@/components/attendance/AttendanceStatusBadge";
-import type { AttendanceRecord, AttendanceStatus } from "@/types/attendance";
-
-const LATE_THRESHOLD_MINUTES = 9 * 60; // 09:00
+import type { AttendanceRecord } from "@/types/attendance";
 
 function formatTime(date: Date): string {
     return date.toLocaleTimeString("en-US", {
@@ -15,10 +13,6 @@ function formatTime(date: Date): string {
         minute: "2-digit",
         hour12: false,
     });
-}
-
-function minutesSinceMidnight(date: Date): number {
-    return date.getHours() * 60 + date.getMinutes();
 }
 
 function computeHours(clockIn: string, clockOut: string): string {
@@ -31,49 +25,23 @@ function computeHours(clockIn: string, clockOut: string): string {
 }
 
 export function ClockInOutCard({
-    initialRecord,
+    record,
     onClockIn,
     onClockOut,
+    isSubmitting,
 }: {
-    initialRecord?: AttendanceRecord;
-    onClockIn: (time: string, status: AttendanceStatus) => void;
-    onClockOut: (time: string) => void;
+    record?: AttendanceRecord;
+    onClockIn: () => void | Promise<void>;
+    onClockOut: () => void | Promise<void>;
+    isSubmitting?: boolean;
 }) {
-    const [now, setNow] = React.useState(new Date());
-    const [record, setRecord] = React.useState(initialRecord);
+    const [now, setNow] = React.useState<Date | null>(null);
 
     React.useEffect(() => {
+        setNow(new Date());
         const interval = setInterval(() => setNow(new Date()), 1000);
         return () => clearInterval(interval);
     }, []);
-
-    function handleClockIn() {
-        // Guard against duplicate clock-in per PRD §8.3 — the button is
-        // already hidden once clockIn is set, this is a second layer.
-        if (record?.clockIn) return;
-
-        const time = formatTime(now);
-        const status: AttendanceStatus =
-            minutesSinceMidnight(now) > LATE_THRESHOLD_MINUTES ? "late" : "on-time";
-
-        setRecord((prev) => ({
-            id: prev?.id ?? `today-${Date.now()}`,
-            employeeId: prev?.employeeId ?? "",
-            date: now.toISOString().slice(0, 10),
-            clockIn: time,
-            clockOut: null,
-            status,
-        }));
-        onClockIn(time, status);
-    }
-
-    function handleClockOut() {
-        if (!record?.clockIn || record.clockOut) return;
-
-        const time = formatTime(now);
-        setRecord((prev) => (prev ? { ...prev, clockOut: time } : prev));
-        onClockOut(time);
-    }
 
     return (
         <Card>
@@ -81,16 +49,18 @@ export function ClockInOutCard({
                 <div className="flex items-center gap-2 text-neutral">
                     <Clock className="h-4 w-4" />
                     <span className="font-body text-sm">
-                        {now.toLocaleDateString("en-US", {
-                            weekday: "long",
-                            month: "long",
-                            day: "numeric",
-                        })}
+                        {now
+                            ? now.toLocaleDateString("en-US", {
+                                  weekday: "long",
+                                  month: "long",
+                                  day: "numeric",
+                              })
+                            : "—"}
                     </span>
                 </div>
 
                 <p className="font-heading text-4xl font-bold text-primary-dark">
-                    {formatTime(now)}
+                    {now ? formatTime(now) : "--:--"}
                 </p>
 
                 {record?.status && (
@@ -98,7 +68,11 @@ export function ClockInOutCard({
                 )}
 
                 {!record?.clockIn ? (
-                    <Button size="lg" onClick={handleClockIn}>
+                    <Button
+                        size="lg"
+                        onClick={() => onClockIn()}
+                        loading={isSubmitting}
+                    >
                         <LogIn className="h-4 w-4" />
                         Clock In
                     </Button>
@@ -110,7 +84,12 @@ export function ClockInOutCard({
                                 {record.clockIn}
                             </span>
                         </p>
-                        <Button size="lg" variant="outline" onClick={handleClockOut}>
+                        <Button
+                            size="lg"
+                            variant="outline"
+                            onClick={() => onClockOut()}
+                            loading={isSubmitting}
+                        >
                             <LogOut className="h-4 w-4" />
                             Clock Out
                         </Button>

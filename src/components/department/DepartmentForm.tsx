@@ -14,21 +14,22 @@ import {
     CardTitle,
 } from "@/components/ui/Card";
 import { Alert } from "@/components/ui/Alert";
+import { EmployeePickerField } from "@/components/employee/EmployeePickerField";
 import type { Department } from "@/types/department";
+import type { Employee } from "@/types/employee";
 
 export interface DepartmentFormValues {
     name: string;
     code: string;
     parentId: string | null;
-    headName: string | null;
-    headInitials: string | null;
+    headId: string | null;
     location: string;
-    status: "active" | "inactive";
 }
 
 interface DepartmentFormProps {
     mode: "add" | "edit";
     departments: Department[];
+    employees: Employee[];
     initialValues?: Department;
     onSubmit: (values: DepartmentFormValues) => void;
     submitting?: boolean;
@@ -59,18 +60,10 @@ function getDescendantIds(departments: Department[], id: string): Set<string> {
     return result;
 }
 
-function initialsFromName(name: string): string {
-    return name
-        .trim()
-        .split(/\s+/)
-        .slice(0, 2)
-        .map((part) => part[0]?.toUpperCase() ?? "")
-        .join("");
-}
-
 export function DepartmentForm({
     mode,
     departments,
+    employees,
     initialValues,
     onSubmit,
     submitting,
@@ -80,11 +73,8 @@ export function DepartmentForm({
     const [name, setName] = React.useState(initialValues?.name ?? "");
     const [code, setCode] = React.useState(initialValues?.code ?? "");
     const [parentId, setParentId] = React.useState(initialValues?.parentId ?? "");
-    const [headName, setHeadName] = React.useState(initialValues?.headName ?? "");
+    const [headId, setHeadId] = React.useState(initialValues?.headId ?? "");
     const [location, setLocation] = React.useState(initialValues?.location ?? "");
-    const [status, setStatus] = React.useState<"active" | "inactive">(
-        initialValues?.status ?? "active",
-    );
     const [errors, setErrors] = React.useState<Record<string, string>>({});
 
     const excludedParentIds = React.useMemo(() => {
@@ -97,6 +87,20 @@ export function DepartmentForm({
     }, [departments, initialValues, mode]);
 
     const parentOptions = departments.filter((d) => !excludedParentIds.has(d.id));
+
+    const headCandidates = React.useMemo(() => {
+        if (mode !== "edit" || !initialValues) return [];
+
+        const takenElsewhere = new Set(
+            departments
+                .filter((d) => d.id !== initialValues.id && d.headId)
+                .map((d) => d.headId as string),
+        );
+
+        return employees.filter(
+            (e) => e.departmentId === initialValues.id && !takenElsewhere.has(e.id),
+        );
+    }, [employees, departments, initialValues, mode]);
 
     function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
@@ -111,15 +115,12 @@ export function DepartmentForm({
         }
 
         setErrors({});
-        const trimmedHead = headName.trim();
         onSubmit({
             name: name.trim(),
             code: code.trim().toUpperCase(),
             parentId: parentId || null,
-            headName: trimmedHead || null,
-            headInitials: trimmedHead ? initialsFromName(trimmedHead) : null,
+            headId: headId || null,
             location: location.trim(),
-            status,
         });
     }
 
@@ -133,11 +134,11 @@ export function DepartmentForm({
                 </CardHeader>
 
                 <CardContent className="flex flex-col gap-5">
-                    {mode === "edit" && (
+                    {mode === "add" && (
                         <Alert variant="info">
-                            Head assignment here just updates the display name for now
-                            — it&apos;ll move to the employee directory once that API
-                            is wired up.
+                            Save the department first, then come back here to
+                            assign a head once employees have been added to
+                            it.
                         </Alert>
                     )}
 
@@ -194,18 +195,30 @@ export function DepartmentForm({
                     </FormField>
 
                     <div className="grid gap-5 sm:grid-cols-2">
-                        <FormField
-                            label="Department head"
-                            htmlFor="headName"
-                            helperText="Full name of the person leading this department"
-                        >
-                            <Input
-                                id="headName"
-                                value={headName ?? ""}
-                                onChange={(e) => setHeadName(e.target.value)}
-                                placeholder="e.g. Budi Santoso"
+                        {mode === "edit" ? (
+                            <EmployeePickerField
+                                label="Department head"
+                                htmlFor="headId"
+                                employees={headCandidates}
+                                value={headId ?? ""}
+                                onChange={setHeadId}
+                                placeholder="Unassigned"
+                                helperText={
+                                    headCandidates.length === 0
+                                        ? "No eligible members — add employees to this department first"
+                                        : undefined
+                                }
                             />
-                        </FormField>
+                        ) : (
+                            <FormField
+                                label="Department head"
+                                helperText="Available after the department is created"
+                            >
+                                <div className="flex h-10 items-center rounded-md border border-input bg-muted/30 px-3 text-sm text-neutral">
+                                    Unassigned
+                                </div>
+                            </FormField>
+                        )}
 
                         <FormField label="Location" htmlFor="location">
                             <Input
@@ -216,19 +229,6 @@ export function DepartmentForm({
                             />
                         </FormField>
                     </div>
-
-                    <FormField label="Status" htmlFor="status">
-                        <Select
-                            id="status"
-                            value={status}
-                            onChange={(e) =>
-                                setStatus(e.target.value as "active" | "inactive")
-                            }
-                        >
-                            <option value="active">Active</option>
-                            <option value="inactive">Inactive</option>
-                        </Select>
-                    </FormField>
                 </CardContent>
 
                 <CardFooter className="justify-end">

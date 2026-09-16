@@ -18,62 +18,13 @@ import {
 import { PayrollStatusBadge } from "@/components/payroll/PayrollStatusBadge";
 import { PaySlipModal } from "@/components/payroll/PaySlipModal";
 import { toast } from "@/components/ui/Toast";
-import type { PayrollRecord } from "@/types/payroll";
-
-const mockPayroll: PayrollRecord[] = [
-    {
-        id: "p1",
-        employeeId: "1",
-        employeeName: "Satria Wijaya",
-        department: "Engineering",
-        role: "Frontend Developer",
-        period: "2025-01",
-        baseSalary: 8000000,
-        allowances: 1500000,
-        deductions: 500000,
-        netPay: 9000000,
-        status: "Pending",
-    },
-    {
-        id: "p2",
-        employeeId: "2",
-        employeeName: "Jane Doe",
-        department: "Human Resources",
-        role: "HR Manager",
-        period: "2025-01",
-        baseSalary: 10000000,
-        allowances: 2000000,
-        deductions: 750000,
-        netPay: 11250000,
-        status: "Processing",
-    },
-    {
-        id: "p3",
-        employeeId: "3",
-        employeeName: "Budi Santoso",
-        department: "Engineering",
-        role: "Backend Developer",
-        period: "2025-01",
-        baseSalary: 7500000,
-        allowances: 1200000,
-        deductions: 450000,
-        netPay: 8250000,
-        status: "Paid",
-    },
-    {
-        id: "p4",
-        employeeId: "4",
-        employeeName: "Rina Hartati",
-        department: "Sales",
-        role: "Sales Executive",
-        period: "2025-01",
-        baseSalary: 6500000,
-        allowances: 1000000,
-        deductions: 350000,
-        netPay: 7150000,
-        status: "Cancelled",
-    },
-];
+import {
+    getPayroll,
+    generatePayrollForPeriod,
+    markPayrollPaid,
+    type PayrollRecordWithDetail,
+} from "@/lib/api/payroll";
+import { periodToMonthYear } from "@/lib/api/mappers/payroll-mappers";
 
 function formatRupiah(amount: number): string {
     return new Intl.NumberFormat("id-ID", {
@@ -98,58 +49,90 @@ function getInitials(name: string) {
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-export default function PayrollPage() {
-    const [records, setRecords] = React.useState<PayrollRecord[]>(mockPayroll);
-    const [period, setPeriod] = React.useState("2025-01");
-    const [paySlipTarget, setPaySlipTarget] =
-        React.useState<PayrollRecord | null>(null);
-    const [isRunning, setIsRunning] = React.useState(false);
+const currentMonth = new Date();
+const defaultPeriod = `${currentMonth.getFullYear()}-${String(
+    currentMonth.getMonth() + 1,
+).padStart(2, "0")}`;
 
-    // Stats
+export default function PayrollPage() {
+    const [records, setRecords] = React.useState<PayrollRecordWithDetail[]>([]);
+    const [period, setPeriod] = React.useState(defaultPeriod);
+    const [isLoading, setIsLoading] = React.useState(true);
+    const [paySlipTarget, setPaySlipTarget] =
+        React.useState<PayrollRecordWithDetail | null>(null);
+    const [isRunning, setIsRunning] = React.useState(false);
+    const [markingPaidId, setMarkingPaidId] = React.useState<string | null>(
+        null,
+    );
+
+    async function loadRecords() {
+        setIsLoading(true);
+        try {
+            const { periodMonth, periodYear } = periodToMonthYear(period);
+            const { records: fetched } = await getPayroll({
+                periodMonth,
+                periodYear,
+                limit: 100,
+            });
+            setRecords(fetched);
+        } catch {
+            toast.error("Couldn't load payroll records.");
+        } finally {
+            setIsLoading(false);
+        }
+    }
+
+    React.useEffect(() => {
+        loadRecords();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [period]);
+
     const totalPayroll = records.reduce((sum, r) => sum + r.netPay, 0);
     const paidRecords = records.filter((r) => r.status === "Paid");
     const pendingCount = records.filter((r) => r.status === "Pending").length;
-    const processingCount = records.filter(
-        (r) => r.status === "Processing",
-    ).length;
     const totalPaid = paidRecords.reduce((sum, r) => sum + r.netPay, 0);
 
-    function handleReview(id: string) {
-        setRecords((prev) =>
-            prev.map((r) => (r.id === id ? { ...r, status: "Processing" } : r)),
-        );
-        toast.success("Moved to processing — ready for approval.");
-    }
-
-    function handleApprove(id: string) {
-        setRecords((prev) =>
-            prev.map((r) => (r.id === id ? { ...r, status: "Paid" } : r)),
-        );
-        toast.success("Payroll approved and marked as paid.");
-    }
-
-    function handleCancel(id: string) {
-        setRecords((prev) =>
-            prev.map((r) => (r.id === id ? { ...r, status: "Cancelled" } : r)),
-        );
-        toast.success("Payroll record cancelled.");
-    }
-
-    function handleRestore(id: string) {
-        setRecords((prev) =>
-            prev.map((r) => (r.id === id ? { ...r, status: "Pending" } : r)),
-        );
-        toast.success("Record restored to pending.");
+    async function handleMarkPaid(id: string) {
+        setMarkingPaidId(id);
+        try {
+            const updated = await markPayrollPaid(id);
+            setRecords((prev) =>
+                prev.map((r) => (r.id === id ? updated : r)),
+            );
+            toast.success(`Marked as paid.`);
+        } catch {
+            toast.error("Couldn't mark this record as paid. Try again.");
+        } finally {
+            setMarkingPaidId(null);
+        }
     }
 
     async function handleRunPayroll() {
         setIsRunning(true);
-        await new Promise((resolve) => setTimeout(resolve, 800));
-        setRecords((prev) =>
-            prev.map((r) => ({ ...r, period, status: "Pending" })),
-        );
-        setIsRunning(false);
-        toast.success(`Payroll generated for ${formatPeriod(period)}.`);
+        try {
+            const results = await generatePayrollForPeriod(period);
+            const succeeded = results.filter((r) => r.success).length;
+            const failed = results.length - succeeded;
+
+            if (succeeded > 0) {
+                toast.success(
+                    `Generated payroll for ${succeeded} employee${
+                        succeeded !== 1 ? "s" : ""
+                    } — ${formatPeriod(period)}.`,
+                );
+            }
+            if (failed > 0) {
+                toast.error(
+                    `${failed} employee${failed !== 1 ? "s" : ""} skipped (likely already generated for this period).`,
+                );
+            }
+
+            await loadRecords();
+        } catch {
+            toast.error("Couldn't run payroll. Try again.");
+        } finally {
+            setIsRunning(false);
+        }
     }
 
     const statCards = [
@@ -161,19 +144,13 @@ export default function PayrollPage() {
         {
             label: "Paid",
             value: formatRupiah(totalPaid),
-            sub: `${paidRecords.length} employees`,
+            sub: `${paidRecords.length} employee${paidRecords.length !== 1 ? "s" : ""}`,
             accent: "border-l-success",
-        },
-        {
-            label: "Processing",
-            value: processingCount,
-            sub: "Awaiting approval",
-            accent: "border-l-secondary",
         },
         {
             label: "Pending",
             value: pendingCount,
-            sub: "Awaiting review",
+            sub: "Awaiting payment",
             accent: "border-l-neutral/30",
         },
     ];
@@ -202,7 +179,7 @@ export default function PayrollPage() {
                 </div>
 
                 {/* Stats */}
-                <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
                     {statCards.map((s) => (
                         <PayrollStatCard
                             key={s.label}
@@ -231,10 +208,14 @@ export default function PayrollPage() {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {records.length === 0 ? (
+                        {isLoading ? (
                             <TableEmpty colSpan={8}>
-                                No payroll records. Click Run Payroll to
-                                generate.
+                                Loading payroll...
+                            </TableEmpty>
+                        ) : records.length === 0 ? (
+                            <TableEmpty colSpan={8}>
+                                No payroll records for this period yet. Click
+                                Run Payroll to generate them.
                             </TableEmpty>
                         ) : (
                             records.map((record) => (
@@ -283,85 +264,37 @@ export default function PayrollPage() {
                                         />
                                     </TableCell>
 
+                                    {/* TODO: add review/processing/cancel/restore step exists to call.*/}
+                                    
                                     {/* Actions */}
                                     <TableCell>
                                         <div className="flex items-center justify-end gap-2">
                                             {record.status === "Pending" && (
-                                                <>
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={() =>
-                                                            handleReview(
-                                                                record.id,
-                                                            )
-                                                        }
-                                                    >
-                                                        Review
-                                                    </Button>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        className="hover:bg-danger/10 hover:text-danger"
-                                                        onClick={() =>
-                                                            handleCancel(
-                                                                record.id,
-                                                            )
-                                                        }
-                                                    >
-                                                        Cancel
-                                                    </Button>
-                                                </>
-                                            )}
-                                            {record.status === "Processing" && (
-                                                <>
-                                                    <Button
-                                                        variant="primary"
-                                                        size="sm"
-                                                        onClick={() =>
-                                                            handleApprove(
-                                                                record.id,
-                                                            )
-                                                        }
-                                                    >
-                                                        Approve
-                                                    </Button>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        className="hover:bg-danger/10 hover:text-danger"
-                                                        onClick={() =>
-                                                            handleCancel(
-                                                                record.id,
-                                                            )
-                                                        }
-                                                    >
-                                                        Cancel
-                                                    </Button>
-                                                </>
-                                            )}
-                                            {record.status === "Paid" && (
                                                 <Button
-                                                    variant="ghost"
+                                                    variant="primary"
                                                     size="sm"
+                                                    loading={
+                                                        markingPaidId ===
+                                                        record.id
+                                                    }
                                                     onClick={() =>
-                                                        setPaySlipTarget(record)
+                                                        handleMarkPaid(
+                                                            record.id,
+                                                        )
                                                     }
                                                 >
-                                                    Pay Slip
+                                                    Mark as Paid
                                                 </Button>
                                             )}
-                                            {record.status === "Cancelled" && (
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() =>
-                                                        handleRestore(record.id)
-                                                    }
-                                                >
-                                                    Restore
-                                                </Button>
-                                            )}
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() =>
+                                                    setPaySlipTarget(record)
+                                                }
+                                            >
+                                                Pay Slip
+                                            </Button>
                                         </div>
                                     </TableCell>
                                 </TableRow>

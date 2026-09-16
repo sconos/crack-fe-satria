@@ -1,27 +1,32 @@
 "use client";
 
+import * as React from "react";
 import { useRouter } from "next/navigation";
 import { PortalLayout } from "@/components/portal/PortalLayout";
 import { PortalProfileForm } from "@/components/portal/PortalProfileForm";
-import { getEmployeeById } from "@/lib/mock-data/employees";
 import { toast } from "@/components/ui/Toast";
-
-// TODO: replace with the logged-in user's id once auth/session is wired up
-const CURRENT_EMPLOYEE_ID = "1";
+import { getMyEmployee, updateMyEmployee } from "@/lib/api/employees";
+import type { Employee } from "@/types/employee";
 
 export default function PortalProfileEditPage() {
     const router = useRouter();
-    const employee = getEmployeeById(CURRENT_EMPLOYEE_ID);
+    const [employee, setEmployee] = React.useState<Employee | null>(null);
+    const [isLoading, setIsLoading] = React.useState(true);
+    const [loadFailed, setLoadFailed] = React.useState(false);
 
-    if (!employee) {
-        return (
-            <PortalLayout title="My Profile">
-                <p className="text-sm text-neutral">
-                    Couldn&apos;t load your profile. Please contact HR.
-                </p>
-            </PortalLayout>
-        );
-    }
+    React.useEffect(() => {
+        (async () => {
+            try {
+                const me = await getMyEmployee();
+                setEmployee(me);
+            } catch {
+                setLoadFailed(true);
+                toast.error("Couldn't load your profile.");
+            } finally {
+                setIsLoading(false);
+            }
+        })();
+    }, []);
 
     async function handleSubmit(values: {
         phone: string;
@@ -30,11 +35,39 @@ export default function PortalProfileEditPage() {
         emergencyContactPhone: string;
         avatar: string | null;
     }) {
-        // TODO: replace with a real PATCH /employees/:id (self-service scope) call
-        console.log("Updating own profile", values);
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        toast.success("Profile updated");
-        router.push("/portal/profile");
+        try {
+            await updateMyEmployee({
+                phone: values.phone,
+                address: values.address,
+                emergencyContactName: values.emergencyContactName,
+                emergencyContactPhone: values.emergencyContactPhone,
+                avatar: values.avatar, // string | null — null means "cleared", must reach the backend as-is
+            });
+            toast.success("Profile updated");
+            router.push("/portal/profile");
+        } catch {
+            toast.error("Couldn't update your profile. Try again.");
+        }
+    }
+
+    if (isLoading) {
+        return (
+            <PortalLayout title="Edit My Profile">
+                <p className="font-body text-sm text-neutral">
+                    Loading your profile...
+                </p>
+            </PortalLayout>
+        );
+    }
+
+    if (loadFailed || !employee) {
+        return (
+            <PortalLayout title="My Profile">
+                <p className="font-body text-sm text-neutral">
+                    Couldn&apos;t load your profile. Please contact HR.
+                </p>
+            </PortalLayout>
+        );
     }
 
     return (

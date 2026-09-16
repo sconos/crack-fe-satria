@@ -2,12 +2,17 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { FormField } from "@/components/ui/FormField";
 import { Input } from "@/components/ui/Input";
 import { PasswordInput } from "@/components/ui/PasswordInput";
 import { Button } from "@/components/ui/Button";
 import { toast } from "@/components/ui/Toast";
 import { validateEmail, validatePassword } from "@/lib/validation";
+import { login } from "@/lib/api/auth";
+import { ApiError } from "@/lib/api/client";
+import { useAuth } from "@/components/auth/AuthProvider";
+import { useState } from "react";
 
 interface LoginValues {
     email: string;
@@ -22,7 +27,10 @@ export function LoginForm() {
         password: "",
     });
     const [errors, setErrors] = React.useState<LoginErrors>({});
-    const [isSubmitting, setIsSubmitting] = React.useState(false);
+    const { setUser } = useAuth();
+    const router = useRouter();
+    const [serverError, setServerError] = useState<string | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     function handleChange(field: keyof LoginValues, value: string) {
         setValues((prev) => ({ ...prev, [field]: value }));
@@ -44,11 +52,16 @@ export function LoginForm() {
 
         setIsSubmitting(true);
         try {
-            // TODO: replace with real auth call
-            await new Promise((resolve) => setTimeout(resolve, 800));
+            const user = await login(values.email, values.password);
+            setUser(user);
             toast.success("Welcome back!");
-        } catch {
-            toast.error("Couldn't sign in. Check your email and password.");
+            router.push(user.role === "EMPLOYEE" ? "/portal" : "/dashboard");
+        } catch (err) {
+            if (err instanceof ApiError && err.status === 401) {
+                toast.error("Invalid email or password.");
+            } else {
+                toast.error("Couldn't sign in. Please try again.");
+            }
         } finally {
             setIsSubmitting(false);
         }

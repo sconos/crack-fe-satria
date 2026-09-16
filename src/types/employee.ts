@@ -11,9 +11,11 @@ export interface Employee {
     nationalId?: string;
     address?: string;
     department: string;
+    departmentId?: string | null;
     role: string;
     employmentType?: EmploymentType;
     manager?: string;
+    managerId?: string | null;
     workLocation?: string;
     status: EmployeeStatus;
     joinDate: string;

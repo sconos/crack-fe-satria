@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
 import { toast } from "@/components/ui/Toast";
 import { validatePassword } from "@/lib/validation";
+import { resetPassword } from "@/lib/api/auth";
 
 interface ResetPasswordValues {
     password: string;
@@ -50,13 +51,12 @@ export function ResetPasswordForm() {
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
+        if (!token) return; // shouldn't happen — the missing-token screen renders instead
         if (!validate()) return;
 
         setIsSubmitting(true);
         try {
-            // TODO: replace with a real POST /auth/reset-password call,
-            // sending { token, password: values.password }
-            await new Promise((resolve) => setTimeout(resolve, 800));
+            await resetPassword(token, values.password);
             setSuccess(true);
         } catch {
             toast.error("Couldn't reset your password. Try again.");

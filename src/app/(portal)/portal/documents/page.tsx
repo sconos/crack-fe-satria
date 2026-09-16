@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { FileText, Plus } from "lucide-react";
+import { FileText, Plus, Download } from "lucide-react";
 import { PortalLayout } from "@/components/portal/PortalLayout";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { Card, CardContent } from "@/components/ui/Card";
@@ -12,29 +12,61 @@ import {
     type UploadDocumentInput,
 } from "@/components/portal/UploadDocumentModal";
 import { toast } from "@/components/ui/Toast";
-import { getDocumentsForEmployee } from "@/lib/mock-data/documents";
-import type { EmployeeDocument } from "@/types/document";
-
-// TODO: replace with the logged-in user's id once auth/session is wired up
-const CURRENT_EMPLOYEE_ID = "1";
+import {
+    getMyDocuments,
+    uploadDocument,
+    downloadDocument,
+    type EmployeeDocumentWithDetail,
+} from "@/lib/api/documents";
 
 export default function PortalDocumentsPage() {
-    const [documents, setDocuments] = React.useState<EmployeeDocument[]>(() =>
-        getDocumentsForEmployee(CURRENT_EMPLOYEE_ID),
-    );
+    const [documents, setDocuments] = React.useState<
+        EmployeeDocumentWithDetail[]
+    >([]);
+    const [isLoading, setIsLoading] = React.useState(true);
     const [modalOpen, setModalOpen] = React.useState(false);
+    const [isUploading, setIsUploading] = React.useState(false);
+    const [downloadingId, setDownloadingId] = React.useState<string | null>(
+        null,
+    );
 
-    function handleUpload(data: UploadDocumentInput) {
-        const newDoc: EmployeeDocument = {
-            id: `d${Date.now()}`,
-            employeeId: CURRENT_EMPLOYEE_ID,
-            fileName: data.fileName,
-            type: data.type,
-            uploadedAt: new Date().toISOString().slice(0, 10),
-            status: "pending-review",
-        };
-        setDocuments((prev) => [newDoc, ...prev]);
-        toast.success("Document uploaded — pending HR review.");
+    async function loadDocuments() {
+        try {
+            const { documents: fetched } = await getMyDocuments({ limit: 100 });
+            setDocuments(fetched);
+        } catch {
+            toast.error("Couldn't load your documents.");
+        } finally {
+            setIsLoading(false);
+        }
+    }
+
+    React.useEffect(() => {
+        loadDocuments();
+    }, []);
+
+    async function handleUpload(data: UploadDocumentInput) {
+        setIsUploading(true);
+        try {
+            await uploadDocument(data.file, data.type);
+            toast.success("Document uploaded — pending HR review.");
+            await loadDocuments();
+        } catch {
+            toast.error("Couldn't upload document. Try again.");
+        } finally {
+            setIsUploading(false);
+        }
+    }
+
+    async function handleDownload(doc: EmployeeDocumentWithDetail) {
+        setDownloadingId(doc.id);
+        try {
+            await downloadDocument(doc.id, doc.fileName);
+        } catch {
+            toast.error("Couldn't download document. Try again.");
+        } finally {
+            setDownloadingId(null);
+        }
     }
 
     return (
@@ -51,7 +83,11 @@ export default function PortalDocumentsPage() {
                     }
                 />
 
-                {documents.length === 0 ? (
+                {isLoading ? (
+                    <p className="px-5 py-10 text-center text-sm text-neutral">
+                        Loading documents...
+                    </p>
+                ) : documents.length === 0 ? (
                     <Card>
                         <CardContent className="flex flex-col items-center gap-1 py-16 text-center">
                             <p className="text-sm font-medium text-primary-dark">
@@ -86,9 +122,33 @@ export default function PortalDocumentsPage() {
                                                     year: "numeric",
                                                 })}
                                             </p>
+                                            {doc.status === "rejected" &&
+                                                doc.rejectionReason && (
+                                                    <p className="font-body text-xs text-danger">
+                                                        {doc.rejectionReason}
+                                                    </p>
+                                                )}
                                         </div>
                                     </div>
-                                    <DocumentStatusBadge status={doc.status} />
+                                    <div className="flex shrink-0 items-center gap-3">
+                                        <DocumentStatusBadge
+                                            status={doc.status}
+                                        />
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-8 w-8 p-0"
+                                            loading={downloadingId === doc.id}
+                                            onClick={() =>
+                                                handleDownload(doc)
+                                            }
+                                        >
+                                            <Download className="h-4 w-4" />
+                                            <span className="sr-only">
+                                                Download {doc.fileName}
+                                            </span>
+                                        </Button>
+                                    </div>
                                 </CardContent>
                             </Card>
                         ))}
@@ -100,6 +160,7 @@ export default function PortalDocumentsPage() {
                 open={modalOpen}
                 onOpenChange={setModalOpen}
                 onSubmit={handleUpload}
+                isUploading={isUploading}
             />
         </PortalLayout>
     );

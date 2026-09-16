@@ -1,12 +1,14 @@
+"use client";
+
+import * as React from "react";
+import Link from "next/link";
 import { PortalLayout } from "@/components/portal/PortalLayout";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/employee/StatusBadge";
 import { Button } from "@/components/ui/Button";
-import { getEmployeeById } from "@/lib/mock-data/employees";
-import Link from "next/link";
-
-// TODO: replace with the logged-in user's id once auth/session is wired up
-const CURRENT_EMPLOYEE_ID = "1";
+import { toast } from "@/components/ui/Toast";
+import { getMyEmployee } from "@/lib/api/employees";
+import type { Employee } from "@/types/employee";
 
 function getInitials(name: string) {
     const parts = name.trim().split(/\s+/);
@@ -14,13 +16,56 @@ function getInitials(name: string) {
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-export default function PortalProfilePage() {
-    const employee = getEmployeeById(CURRENT_EMPLOYEE_ID);
+function FieldGrid({ fields }: { fields: { label: string; value: string }[] }) {
+    return (
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+            {fields.map((f) => (
+                <div key={f.label} className="flex flex-col gap-1">
+                    <dt className="font-body text-xs font-medium text-neutral">
+                        {f.label}
+                    </dt>
+                    <dd className="font-body text-sm text-primary-dark">
+                        {f.value}
+                    </dd>
+                </div>
+            ))}
+        </div>
+    );
+}
 
-    if (!employee) {
+export default function PortalProfilePage() {
+    const [employee, setEmployee] = React.useState<Employee | null>(null);
+    const [isLoading, setIsLoading] = React.useState(true);
+    const [loadFailed, setLoadFailed] = React.useState(false);
+
+    React.useEffect(() => {
+        (async () => {
+            try {
+                const me = await getMyEmployee();
+                setEmployee(me);
+            } catch {
+                setLoadFailed(true);
+                toast.error("Couldn't load your profile.");
+            } finally {
+                setIsLoading(false);
+            }
+        })();
+    }, []);
+
+    if (isLoading) {
         return (
             <PortalLayout title="My Profile">
-                <p className="text-sm text-neutral">
+                <p className="font-body text-sm text-neutral">
+                    Loading your profile...
+                </p>
+            </PortalLayout>
+        );
+    }
+
+    if (loadFailed || !employee) {
+        return (
+            <PortalLayout title="My Profile">
+                <p className="font-body text-sm text-neutral">
                     Couldn&apos;t load your profile. Please contact HR.
                 </p>
             </PortalLayout>
@@ -35,11 +80,13 @@ export default function PortalProfilePage() {
         { label: "Work location", value: employee.workLocation ?? "—" },
         {
             label: "Join date",
-            value: new Date(employee.joinDate).toLocaleDateString("en-US", {
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-            }),
+            value: employee.joinDate
+                ? new Date(employee.joinDate).toLocaleDateString("en-US", {
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                  })
+                : "—",
         },
     ];
 
@@ -67,27 +114,6 @@ export default function PortalProfilePage() {
             value: employee.emergencyContactPhone ?? "—",
         },
     ];
-
-    function FieldGrid({
-        fields,
-    }: {
-        fields: { label: string; value: string }[];
-    }) {
-        return (
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                {fields.map((f) => (
-                    <div key={f.label} className="flex flex-col gap-1">
-                        <dt className="font-body text-xs font-medium text-neutral">
-                            {f.label}
-                        </dt>
-                        <dd className="font-body text-sm text-primary-dark">
-                            {f.value}
-                        </dd>
-                    </div>
-                ))}
-            </div>
-        );
-    }
 
     return (
         <PortalLayout title="My Profile">

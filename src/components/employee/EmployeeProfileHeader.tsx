@@ -1,4 +1,3 @@
-import * as React from "react";
 import Link from "next/link";
 import { Pencil, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/Button";

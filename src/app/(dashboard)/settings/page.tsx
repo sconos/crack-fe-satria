@@ -5,8 +5,6 @@ import { PageHeader } from "@/components/dashboard/PageHeader";
 import { Tabs } from "@/components/ui/Tabs";
 import { LeaveTypesTab } from "@/components/settings/LeaveTypesTab";
 import { HolidaysTab } from "@/components/settings/HolidaysTab";
-import { leaveTypes } from "@/lib/mock-data/leave-types";
-import { holidays } from "@/lib/mock-data/holidays";
 import { useState } from "react";
 
 const tabItems = [
@@ -27,11 +25,7 @@ export default function SettingsPage() {
 
                 <Tabs items={tabItems} value={tab} onValueChange={setTab} />
 
-                {tab === "leave-types" ? (
-                    <LeaveTypesTab initialLeaveTypes={leaveTypes} />
-                ) : (
-                    <HolidaysTab initialHolidays={holidays} />
-                )}
+                {tab === "leave-types" ? <LeaveTypesTab /> : <HolidaysTab />}
             </div>
         </DashboardLayout>
     );

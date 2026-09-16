@@ -10,7 +10,7 @@ export function PayrollStatCard({
     label: string;
     value: string | number;
     sub?: string;
-    accent: string; // e.g. "border-l-success", "border-l-secondary"
+    accent: string;
 }) {
     return (
         <Card className={cn("border-l-4", accent)}>

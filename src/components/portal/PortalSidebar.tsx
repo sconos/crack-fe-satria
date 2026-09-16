@@ -1,6 +1,5 @@
 "use client";
 
-import * as React from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -20,6 +19,9 @@ import {
 import { cn } from "@/lib/util";
 import { Avatar } from "@/components/ui/Avatar";
 import { getEmployeeById } from "@/lib/mock-data/employees";
+import { useRouter } from "next/navigation";
+import { logout } from "@/lib/api/auth";
+import { useAuth } from "@/components/auth/AuthProvider";
 
 const navItems = [
     { label: "Dashboard", href: "/portal", icon: LayoutDashboard },
@@ -31,9 +33,6 @@ const navItems = [
     { label: "Directory", href: "/portal/directory", icon: Users },
     { label: "Org Chart", href: "/portal/org-chart", icon: Network },
 ];
-
-// TODO: replace with the logged-in user's id once auth/session is wired up
-const CURRENT_EMPLOYEE_ID = "1";
 
 function getInitials(name: string) {
     const parts = name.trim().split(/\s+/);
@@ -48,7 +47,15 @@ interface PortalSidebarProps {
 
 function SidebarContent({ onClose }: { onClose?: () => void }) {
     const pathname = usePathname();
-    const employee = getEmployeeById(CURRENT_EMPLOYEE_ID);
+    const { user } = useAuth(); 
+    const router = useRouter();
+    const { setUser } = useAuth();
+
+    async function handleSignOut() {
+        await logout();
+        setUser(null);
+        router.push("/login");
+    }
 
     return (
         <aside className="flex h-screen w-60 flex-col border-r border-neutral/15 bg-base-white">
@@ -77,20 +84,19 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
             </div>
 
             {/* Employee card */}
-            {employee && (
+            {user && (
             <div className="mx-3 mt-3 rounded-lg bg-primary-tint px-3 py-3">
                 <div className="flex items-center gap-2">
                     <Avatar
-                        initials={getInitials(employee.name)}
-                        src={employee.avatar}
+                        initials={getInitials(user.email)}
                         size="sm"
                     />
                     <div className="min-w-0">
                         <p className="truncate font-heading text-xs font-bold text-primary-dark">
-                            {employee.name}
+                            {user.email}
                         </p>
                         <p className="truncate font-body text-xs text-neutral">
-                            {employee.role}
+                            {user.role}
                         </p>
                     </div>
                 </div>
@@ -140,6 +146,7 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
                 <button
                     type="button"
                     className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-neutral transition-colors hover:bg-danger/10 hover:text-danger"
+                    onClick={handleSignOut}
                 >
                     <LogOut className="h-4 w-4 shrink-0" />
                     Sign out

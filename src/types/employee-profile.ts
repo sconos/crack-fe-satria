@@ -11,5 +11,5 @@ export type LeaveHistoryItem = {
     type: string;
     range: string;
     days: number;
-    status: "Approved" | "Pending" | "Rejected";
+    status: "Approved" | "Pending" | "Rejected" | "Cancelled";
 };

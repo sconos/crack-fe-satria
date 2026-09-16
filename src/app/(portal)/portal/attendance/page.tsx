@@ -14,16 +14,22 @@ import {
     TableEmpty,
 } from "@/components/ui/Table";
 import { AttendanceStatusBadge } from "@/components/attendance/AttendanceStatusBadge";
+import {
+    RequestCorrectionModal,
+    type CorrectionRequestInput,
+} from "@/components/attendance/RequestCorrectionModal";
 import { ClockInOutCard } from "@/components/portal/ClockInOutCard";
+import { Button } from "@/components/ui/Button";
 import { toast } from "@/components/ui/Toast";
 import {
-    getAttendanceForEmployee,
-    getTodayRecord,
-} from "@/lib/mock-data/attendance";
-import type { AttendanceRecord, AttendanceStatus } from "@/types/attendance";
-
-// TODO: replace with the logged-in user's id once auth/session is wired up
-const CURRENT_EMPLOYEE_ID = "1";
+    clockIn as clockInRequest,
+    clockOut as clockOutRequest,
+    getMyAttendance,
+    type AttendanceRecordWithEmployee,
+} from "@/lib/api/attendance";
+import { createCorrectionRequest } from "@/lib/api/attendance-corrections";
+import { todayDateString } from "@/lib/api/mappers/attendance-mappers";
+import { ApiError } from "@/lib/api/client";
 
 function computeHours(clockIn: string | null, clockOut: string | null): string {
     if (!clockIn || !clockOut) return "—";
@@ -36,37 +42,113 @@ function computeHours(clockIn: string | null, clockOut: string | null): string {
 }
 
 export default function PortalAttendancePage() {
-    const [history, setHistory] = React.useState<AttendanceRecord[]>(() =>
-        getAttendanceForEmployee(CURRENT_EMPLOYEE_ID),
-    );
-    const todayRecord = getTodayRecord(CURRENT_EMPLOYEE_ID);
+    const [history, setHistory] = React.useState<
+        AttendanceRecordWithEmployee[]
+    >([]);
+    const [isLoading, setIsLoading] = React.useState(true);
+    const [isSubmitting, setIsSubmitting] = React.useState(false);
+    const [correctionTarget, setCorrectionTarget] =
+        React.useState<AttendanceRecordWithEmployee | null>(null);
+    const [isSubmittingCorrection, setIsSubmittingCorrection] =
+        React.useState(false);
 
-    function handleClockIn(time: string, status: AttendanceStatus) {
-        const today = new Date().toISOString().slice(0, 10);
-        setHistory((prev) => [
-            {
-                id: `today-${Date.now()}`,
-                employeeId: CURRENT_EMPLOYEE_ID,
-                date: today,
-                clockIn: time,
-                clockOut: null,
-                status,
-            },
-            ...prev.filter((r) => r.date !== today),
-        ]);
-        toast.success(`Clocked in at ${time}`);
+    // The backend scopes /attendance/me to the JWT's employee, so there's
+    // no employee id to pass or hardcode here.
+    React.useEffect(() => {
+        let cancelled = false;
+
+        async function load() {
+            try {
+                const { records } = await getMyAttendance({ limit: 100 });
+                if (!cancelled) setHistory(records);
+            } catch {
+                if (!cancelled) toast.error("Couldn't load your attendance.");
+            } finally {
+                if (!cancelled) setIsLoading(false);
+            }
+        }
+
+        load();
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    const today = todayDateString();
+    const todayRecord = history.find((r) => r.date === today);
+
+    function upsertRecord(updated: AttendanceRecordWithEmployee) {
+        setHistory((prev) => {
+            const exists = prev.some((r) => r.id === updated.id);
+            if (exists) {
+                return prev.map((r) => (r.id === updated.id ? updated : r));
+            }
+            return [updated, ...prev];
+        });
     }
 
-    function handleClockOut(time: string) {
-        const today = new Date().toISOString().slice(0, 10);
-        setHistory((prev) =>
-            prev.map((r) => (r.date === today ? { ...r, clockOut: time } : r)),
-        );
-        toast.success(`Clocked out at ${time}`);
+    async function handleClockIn() {
+        setIsSubmitting(true);
+        try {
+            const updated = await clockInRequest();
+            upsertRecord(updated);
+            toast.success(`Clocked in at ${updated.clockIn}`);
+        } catch (err) {
+            // 409 means already clocked in — surface the backend's message
+            // rather than a generic one.
+            toast.error(
+                err instanceof ApiError
+                    ? err.message
+                    : "Couldn't clock in. Try again.",
+            );
+        } finally {
+            setIsSubmitting(false);
+        }
+    }
+
+    async function handleClockOut() {
+        setIsSubmitting(true);
+        try {
+            const updated = await clockOutRequest();
+            upsertRecord(updated);
+            toast.success(`Clocked out at ${updated.clockOut}`);
+        } catch (err) {
+            toast.error(
+                err instanceof ApiError
+                    ? err.message
+                    : "Couldn't clock out. Try again.",
+            );
+        } finally {
+            setIsSubmitting(false);
+        }
+    }
+
+    async function handleSubmitCorrection(data: CorrectionRequestInput) {
+        if (!correctionTarget) return;
+        setIsSubmittingCorrection(true);
+        try {
+            await createCorrectionRequest({
+                attendanceId: correctionTarget.id,
+                date: correctionTarget.date,
+                requestedClockIn: data.requestedClockIn,
+                requestedClockOut: data.requestedClockOut,
+                reason: data.reason,
+            });
+            toast.success("Correction request submitted — pending HR review.");
+            setCorrectionTarget(null);
+        } catch (err) {
+            toast.error(
+                err instanceof ApiError
+                    ? err.message
+                    : "Couldn't submit correction request. Try again.",
+            );
+        } finally {
+            setIsSubmittingCorrection(false);
+        }
     }
 
     const presentCount = history.filter(
-        (r) => r.status === "on-time" || r.status === "late" || r.status === "remote",
+        (r) => r.status === "on-time" || r.status === "late",
     ).length;
     const lateCount = history.filter((r) => r.status === "late").length;
     const absentCount = history.filter((r) => r.status === "absent").length;
@@ -75,9 +157,10 @@ export default function PortalAttendancePage() {
         <PortalLayout title="My Attendance">
             <div className="flex flex-col gap-6">
                 <ClockInOutCard
-                    initialRecord={todayRecord}
+                    record={todayRecord}
                     onClockIn={handleClockIn}
                     onClockOut={handleClockOut}
+                    isSubmitting={isSubmitting}
                 />
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -111,11 +194,18 @@ export default function PortalAttendancePage() {
                                     <TableHead>Clock out</TableHead>
                                     <TableHead>Hours</TableHead>
                                     <TableHead>Status</TableHead>
+                                    <TableHead className="text-right">
+                                        Actions
+                                    </TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {history.length === 0 ? (
-                                    <TableEmpty colSpan={5}>
+                                {isLoading ? (
+                                    <TableEmpty colSpan={6}>
+                                        Loading attendance...
+                                    </TableEmpty>
+                                ) : history.length === 0 ? (
+                                    <TableEmpty colSpan={6}>
                                         No attendance records yet.
                                     </TableEmpty>
                                 ) : (
@@ -146,6 +236,19 @@ export default function PortalAttendancePage() {
                                                     status={record.status}
                                                 />
                                             </TableCell>
+                                            <TableCell className="text-right">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() =>
+                                                        setCorrectionTarget(
+                                                            record,
+                                                        )
+                                                    }
+                                                >
+                                                    Request correction
+                                                </Button>
+                                            </TableCell>
                                         </TableRow>
                                     ))
                                 )}
@@ -154,6 +257,16 @@ export default function PortalAttendancePage() {
                     </CardContent>
                 </Card>
             </div>
+
+            <RequestCorrectionModal
+                open={!!correctionTarget}
+                onOpenChange={(open) => {
+                    if (!open) setCorrectionTarget(null);
+                }}
+                record={correctionTarget}
+                onSubmit={handleSubmitCorrection}
+                isSubmitting={isSubmittingCorrection}
+            />
         </PortalLayout>
     );
 }

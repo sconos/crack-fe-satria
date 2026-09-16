@@ -1,11 +1,13 @@
 "use client";
 
-import * as React from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { LayoutDashboard, Users, ChevronRight, ListChecks, DollarSign, Settings, FileBarChart, LogOut } from "lucide-react";
 import { cn } from "@/lib/util";
+import { useRouter } from "next/navigation";
+import { logout } from "@/lib/api/auth";
+import { useAuth } from "@/components/auth/AuthProvider";
 
 const navItems = [
     { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -18,6 +20,14 @@ const navItems = [
 
 function Sidebar() {
     const pathname = usePathname();
+    const router = useRouter();
+    const { setUser } = useAuth();
+
+    async function handleSignOut() {
+        await logout();
+        setUser(null);
+        router.push("/login");
+    }
 
     return (
         <aside className="flex h-screen w-60 flex-col border-r border-neutral/15 bg-base-white">
@@ -75,6 +85,7 @@ function Sidebar() {
                 <button
                     type="button"
                     className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-neutral transition-colors hover:bg-danger/10 hover:text-danger"
+                    onClick={handleSignOut}
                 >
                     <LogOut className="h-4 w-4 shrink-0" />
                     Sign out

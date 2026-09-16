@@ -1,14 +1,16 @@
-export type LeaveStatus = "Approved" | "Pending" | "Rejected";
+export type LeaveStatus = "Approved" | "Pending" | "Rejected" | "Cancelled";
 
 export interface LeaveRequest {
     id: string;
     employeeId: string;
     type: string;
+    leaveTypeId: string;
     startDate: string;
     endDate: string;
     days: number;
     reason: string;
     status: LeaveStatus;
+    rejectionReason?: string | null;
     appliedDate: string;
 }
 
@@ -23,5 +25,5 @@ export interface LeaveTypeConfig {
 export interface PublicHoliday {
     id: string;
     name: string;
-    date: string; 
+    date: string;
 }

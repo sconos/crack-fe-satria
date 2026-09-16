@@ -16,7 +16,7 @@ function escapeHtml(value: string) {
 
 export function DepartmentOrgChart({ departments }: { departments: Department[] }) {
     const rawId = useId();
-    const containerId = `org-chart-${rawId.replace(/:/g, "")}`; // useId() includes colons, invalid in CSS selectors
+    const containerId = `org-chart-${rawId.replace(/:/g, "")}`;
     const containerRef = useRef<HTMLDivElement>(null);
     const chartRef = useRef<OrgChart<Department> | null>(null);
 

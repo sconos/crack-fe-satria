@@ -1,5 +1,4 @@
 // lib/mock-data/departments.ts
-// TODO: replace with real data from the API layer
 import type { Department } from "@/types/department";
 
 export const departments: Department[] = [

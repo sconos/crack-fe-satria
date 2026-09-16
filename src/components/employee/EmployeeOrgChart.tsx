@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useId, useRef } from "react";
-import { useRouter } from "next/navigation";
 import { OrgChart } from "d3-org-chart";
 import type { HierarchyNode } from "d3-hierarchy";
 import type { Employee } from "@/types/employee";
@@ -28,12 +27,6 @@ function getInitials(name: string) {
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-/**
- * Builds the flat {id, parentId} shape d3-org-chart needs from the
- * manager *name* relationship. Employees whose manager doesn't resolve
- * to another employee in the list (top of the chain, or a manager not
- * yet in the system) become root nodes.
- */
 function toChartData(employees: Employee[]): ChartDatum[] {
     const idByName = new Map(employees.map((e) => [e.name, e.id]));
 

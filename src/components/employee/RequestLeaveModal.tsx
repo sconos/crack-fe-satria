@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
     Modal,
     ModalHeader,
@@ -16,31 +16,44 @@ import { Textarea } from "@/components/ui/Textarea";
 import { Button } from "@/components/ui/Button";
 
 export type LeaveRequestInput = {
-    type: string;
+    leaveTypeId: string;
     startDate: string;
     endDate: string;
     reason: string;
 };
+
+export interface LeaveTypeOption {
+    id: string;
+    name: string;
+}
 
 export function RequestLeaveModal({
     open,
     onOpenChange,
     leaveTypes,
     onSubmit,
+    isSubmitting,
 }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    leaveTypes: string[];
+    leaveTypes: LeaveTypeOption[];
     onSubmit: (data: LeaveRequestInput) => void;
+    isSubmitting?: boolean;
 }) {
-    const [type, setType] = useState(leaveTypes[0] ?? "");
+    const [leaveTypeId, setLeaveTypeId] = useState(leaveTypes[0]?.id ?? "");
     const [startDate, setStartDate] = useState("");
     const [endDate, setEndDate] = useState("");
     const [reason, setReason] = useState("");
     const [errors, setErrors] = useState<Record<string, string>>({});
 
+    useEffect(() => {
+        if (!leaveTypeId && leaveTypes.length > 0) {
+            setLeaveTypeId(leaveTypes[0].id);
+        }
+    }, [leaveTypes, leaveTypeId]);
+
     function reset() {
-        setType(leaveTypes[0] ?? "");
+        setLeaveTypeId(leaveTypes[0]?.id ?? "");
         setStartDate("");
         setEndDate("");
         setReason("");
@@ -54,6 +67,7 @@ export function RequestLeaveModal({
 
     function handleSubmit() {
         const nextErrors: Record<string, string> = {};
+        if (!leaveTypeId) nextErrors.leaveTypeId = "Pick a leave type.";
         if (!startDate) nextErrors.startDate = "Pick a start date.";
         if (!endDate) nextErrors.endDate = "Pick an end date.";
         if (startDate && endDate && endDate < startDate) {
@@ -66,9 +80,7 @@ export function RequestLeaveModal({
             return;
         }
 
-        onSubmit({ type, startDate, endDate, reason: reason.trim() });
-        reset();
-        onOpenChange(false);
+        onSubmit({ leaveTypeId, startDate, endDate, reason: reason.trim() });
     }
 
     return (
@@ -82,15 +94,20 @@ export function RequestLeaveModal({
             </ModalHeader>
 
             <div className="mt-6 flex flex-col gap-4">
-                <FormField label="Leave type" htmlFor="leave-type">
+                <FormField
+                    label="Leave type"
+                    htmlFor="leave-type"
+                    error={errors.leaveTypeId}
+                >
                     <Select
                         id="leave-type"
-                        value={type}
-                        onChange={(e) => setType(e.target.value)}
+                        value={leaveTypeId}
+                        onChange={(e) => setLeaveTypeId(e.target.value)}
+                        error={!!errors.leaveTypeId}
                     >
                         {leaveTypes.map((t) => (
-                            <option key={t} value={t}>
-                                {t}
+                            <option key={t.id} value={t.id}>
+                                {t.name}
                             </option>
                         ))}
                     </Select>
@@ -144,7 +161,9 @@ export function RequestLeaveModal({
                 <Button variant="outline" onClick={() => handleClose(false)}>
                     Cancel
                 </Button>
-                <Button onClick={handleSubmit}>Submit request</Button>
+                <Button onClick={handleSubmit} loading={isSubmitting}>
+                    Submit request
+                </Button>
             </ModalFooter>
         </Modal>
     );

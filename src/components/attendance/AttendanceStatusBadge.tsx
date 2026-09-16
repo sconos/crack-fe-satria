@@ -12,7 +12,6 @@ const statusMap: Record<
     late: { variant: "warning", label: "Late" },
     absent: { variant: "danger", label: "Absent" },
     "on-leave": { variant: "warning", label: "On leave" },
-    remote: { variant: "info", label: "Remote" },
 };
 
 export function AttendanceStatusBadge({

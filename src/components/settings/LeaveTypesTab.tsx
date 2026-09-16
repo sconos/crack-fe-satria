@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import * as React from "react";
 import { Plus, Pencil, UserX, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -16,16 +16,41 @@ import {
 import { DropdownMenu } from "@/components/ui/DropdownMenu";
 import { LeaveTypeModal, type LeaveTypeInput } from "./LeaveTypeModal";
 import { toast } from "@/components/ui/Toast";
+import {
+    getAllLeaveTypes,
+    createLeaveType,
+    updateLeaveType,
+    updateLeaveTypeStatus,
+} from "@/lib/api/leave-types";
 import type { LeaveTypeConfig } from "@/types/leave";
 
-export function LeaveTypesTab({
-    initialLeaveTypes,
-}: {
-    initialLeaveTypes: LeaveTypeConfig[];
-}) {
-    const [leaveTypes, setLeaveTypes] = useState(initialLeaveTypes);
-    const [modalOpen, setModalOpen] = useState(false);
-    const [editTarget, setEditTarget] = useState<LeaveTypeConfig | null>(null);
+export function LeaveTypesTab() {
+    const [leaveTypes, setLeaveTypes] = React.useState<LeaveTypeConfig[]>([]);
+    const [isLoading, setIsLoading] = React.useState(true);
+    const [modalOpen, setModalOpen] = React.useState(false);
+    const [editTarget, setEditTarget] = React.useState<LeaveTypeConfig | null>(
+        null,
+    );
+
+    React.useEffect(() => {
+        let cancelled = false;
+
+        async function load() {
+            try {
+                const fetched = await getAllLeaveTypes();
+                if (!cancelled) setLeaveTypes(fetched);
+            } catch {
+                if (!cancelled) toast.error("Couldn't load leave types.");
+            } finally {
+                if (!cancelled) setIsLoading(false);
+            }
+        }
+
+        load();
+        return () => {
+            cancelled = true;
+        };
+    }, []);
 
     function handleAdd() {
         setEditTarget(null);
@@ -37,33 +62,40 @@ export function LeaveTypesTab({
         setModalOpen(true);
     }
 
-    function handleSubmit(data: LeaveTypeInput) {
-        if (editTarget) {
-            setLeaveTypes((prev) =>
-                prev.map((t) =>
-                    t.id === editTarget.id ? { ...t, ...data } : t,
-                ),
+    async function handleSubmit(data: LeaveTypeInput) {
+        try {
+            if (editTarget) {
+                const updated = await updateLeaveType(editTarget.id, data);
+                setLeaveTypes((prev) =>
+                    prev.map((t) => (t.id === editTarget.id ? updated : t)),
+                );
+                toast.success(`${data.name} updated`);
+            } else {
+                const created = await createLeaveType(data);
+                setLeaveTypes((prev) => [...prev, created]);
+                toast.success(`${data.name} added`);
+            }
+        } catch {
+            toast.error(
+                editTarget
+                    ? "Couldn't update leave type. Try again."
+                    : "Couldn't add leave type. Try again.",
             );
-            toast.success(`${data.name} updated`);
-        } else {
-            setLeaveTypes((prev) => [
-                ...prev,
-                {
-                    id: `lt${Date.now()}`,
-                    isActive: true,
-                    ...data,
-                },
-            ]);
-            toast.success(`${data.name} added`);
         }
     }
 
-    function handleToggleActive(id: string) {
-        setLeaveTypes((prev) =>
-            prev.map((t) =>
-                t.id === id ? { ...t, isActive: !t.isActive } : t,
-            ),
-        );
+    async function handleToggleActive(type: LeaveTypeConfig) {
+        try {
+            const updated = await updateLeaveTypeStatus(
+                type.id,
+                !type.isActive,
+            );
+            setLeaveTypes((prev) =>
+                prev.map((t) => (t.id === type.id ? updated : t)),
+            );
+        } catch {
+            toast.error("Couldn't update status. Try again.");
+        }
     }
 
     return (
@@ -86,7 +118,11 @@ export function LeaveTypesTab({
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {leaveTypes.length === 0 ? (
+                    {isLoading ? (
+                        <TableEmpty colSpan={5}>
+                            Loading leave types...
+                        </TableEmpty>
+                    ) : leaveTypes.length === 0 ? (
                         <TableEmpty colSpan={5}>No leave types configured yet.</TableEmpty>
                     ) : (
                         leaveTypes.map((type) => (
@@ -95,7 +131,9 @@ export function LeaveTypesTab({
                                     {type.name}
                                 </TableCell>
                                 <TableCell className="text-neutral">
-                                    {type.defaultAllocation} days/year
+                                    {type.defaultAllocation === 0
+                                        ? "No limit"
+                                        : `${type.defaultAllocation} days/year`}
                                 </TableCell>
                                 <TableCell>
                                     <Badge variant={type.isPaid ? "info" : "neutral"}>
@@ -132,7 +170,7 @@ export function LeaveTypesTab({
                                                     ? "danger"
                                                     : "default",
                                                 onSelect: () =>
-                                                    handleToggleActive(type.id),
+                                                    handleToggleActive(type),
                                             },
                                         ]}
                                     />

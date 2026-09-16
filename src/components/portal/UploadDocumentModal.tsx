@@ -25,17 +25,19 @@ const documentTypes: DocumentType[] = [
 
 export type UploadDocumentInput = {
     type: DocumentType;
-    fileName: string;
+    file: File;
 };
 
 export function UploadDocumentModal({
     open,
     onOpenChange,
     onSubmit,
+    isUploading,
 }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    onSubmit: (data: UploadDocumentInput) => void;
+    onSubmit: (data: UploadDocumentInput) => void | Promise<void>;
+    isUploading?: boolean;
 }) {
     const [type, setType] = useState<DocumentType>("ID Card");
     const [file, setFile] = useState<File | null>(null);
@@ -52,13 +54,13 @@ export function UploadDocumentModal({
         onOpenChange(open);
     }
 
-    function handleSubmit() {
+    async function handleSubmit() {
         if (!file) {
             setError("Choose a file to upload.");
             return;
         }
 
-        onSubmit({ type, fileName: file.name });
+        await onSubmit({ type, file });
         reset();
         onOpenChange(false);
     }
@@ -105,7 +107,9 @@ export function UploadDocumentModal({
                 <Button variant="outline" onClick={() => handleClose(false)}>
                     Cancel
                 </Button>
-                <Button onClick={handleSubmit}>Upload</Button>
+                <Button onClick={handleSubmit} loading={isUploading}>
+                    Upload
+                </Button>
             </ModalFooter>
         </Modal>
     );

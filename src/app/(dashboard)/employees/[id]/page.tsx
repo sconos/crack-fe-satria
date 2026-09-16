@@ -1,33 +1,74 @@
+"use client";
+
+import * as React from "react";
 import Link from "next/link";
+import { useParams } from "next/navigation";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { EmployeeProfileClient } from "@/components/employee/EmployeeProfileClient";
-import { getEmployeeById } from "@/lib/mock-data/employees";
-import type { LeaveBalance, LeaveHistoryItem } from "@/types/employee-profile";
+import { getEmployee } from "@/lib/api/employees";
+import { getLeaveRequests } from "@/lib/api/leave";
+import { formatLeaveDateRange } from "@/lib/api/mappers/leave-mappers";
+import { toast } from "@/components/ui/Toast";
+import type { Employee } from "@/types/employee";
+import type { LeaveHistoryItem } from "@/types/employee-profile";
 
-// TODO: replace with real fetches keyed by params.id once leave has its own API
-const mockLeaveBalances: LeaveBalance[] = [
-    { type: "Annual leave", used: 6, total: 12 },
-    { type: "Sick leave", used: 2, total: 10 },
-    { type: "Unpaid leave", used: 0, total: 5 },
-];
+export default function EmployeeProfilePage() {
+    const params = useParams<{ id: string }>();
+    const [employee, setEmployee] = React.useState<Employee | null>(null);
+    const [leaveHistory, setLeaveHistory] = React.useState<LeaveHistoryItem[]>(
+        [],
+    );
+    const [isLoading, setIsLoading] = React.useState(true);
+    const [loadFailed, setLoadFailed] = React.useState(false);
 
-const mockLeaveHistory: LeaveHistoryItem[] = [
-    { id: "l1", type: "Annual leave", range: "Jun 20 – Jun 21", days: 2, status: "Approved" },
-    { id: "l2", type: "Sick leave", range: "May 14", days: 1, status: "Approved" },
-    { id: "l3", type: "Annual leave", range: "Jul 8 – Jul 10", days: 3, status: "Pending" },
-];
+    React.useEffect(() => {
+        let cancelled = false;
 
-export default async function EmployeeProfilePage({
-    params,
-}: {
-    params: Promise<{ id: string }>;
-}) {
-    const { id } = await params;
-    const employee = getEmployeeById(id);
+        async function load() {
+            try {
+                const fetchedEmployee = await getEmployee(params.id);
+                if (cancelled) return;
+                setEmployee(fetchedEmployee);
+            } catch {
+                if (!cancelled) {
+                    setLoadFailed(true);
+                    setIsLoading(false);
+                }
+                return;
+            }
 
-    if (!employee) {
+            try {
+                const { requests } = await getLeaveRequests({
+                    employeeId: params.id,
+                    limit: 100,
+                });
+                if (!cancelled) {
+                    setLeaveHistory(
+                        requests.map((r) => ({
+                            id: r.id,
+                            type: r.type,
+                            range: formatLeaveDateRange(r.startDate, r.endDate),
+                            days: r.days,
+                            status: r.status,
+                        })),
+                    );
+                }
+            } catch {
+                if (!cancelled) toast.error("Couldn't load leave history.");
+            } finally {
+                if (!cancelled) setIsLoading(false);
+            }
+        }
+
+        load();
+        return () => {
+            cancelled = true;
+        };
+    }, [params.id]);
+
+    if (!isLoading && (loadFailed || !employee)) {
         return (
             <DashboardLayout title="Employee not found">
                 <div className="flex flex-col gap-6">
@@ -43,11 +84,13 @@ export default async function EmployeeProfilePage({
         );
     }
 
+    if (isLoading || !employee) {
+        return (
+            <p className="p-6 text-sm text-neutral">Loading employee...</p>
+        );
+    }
+
     return (
-        <EmployeeProfileClient
-            employee={employee}
-            leaveBalances={mockLeaveBalances}
-            leaveHistory={mockLeaveHistory}
-        />
+        <EmployeeProfileClient employee={employee} leaveHistory={leaveHistory} />
     );
 }

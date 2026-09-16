@@ -1,9 +1,4 @@
-export type AttendanceStatus =
-    | "on-time"
-    | "late"
-    | "absent"
-    | "on-leave"
-    | "remote";
+export type AttendanceStatus = "on-time" | "late" | "absent" | "on-leave";
 
 export interface AttendanceRecord {
     id: string;

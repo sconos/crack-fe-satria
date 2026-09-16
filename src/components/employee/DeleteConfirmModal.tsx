@@ -45,7 +45,6 @@ function DeleteConfirmModal({
         return () => document.removeEventListener("keydown", handleKeyDown);
     }, [open, isDeleting, onOpenChange]);
 
-    // Don't render on server or when closed
     if (typeof document === "undefined" || !open) return null;
 
     return createPortal(

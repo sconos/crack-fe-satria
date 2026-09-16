@@ -1,12 +1,18 @@
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import type { EmployeeProfile } from "@/types/employee-profile";
 
-function Field({ label, value }: { label: string; value: string }) {
+function Field({
+    label,
+    value,
+}: {
+    label: string;
+    value: string | undefined | null;
+}) {
     return (
         <div>
             <p className="text-xs text-neutral">{label}</p>
             <p className="mt-0.5 text-sm font-medium text-primary-dark">
-                {value}
+                {value && value.trim() ? value : "—"}
             </p>
         </div>
     );
@@ -57,14 +63,18 @@ export function ProfileOverviewTab({
                     <Field label="Reports to" value={employee.manager} />
                     <Field
                         label="Join date"
-                        value={new Date(employee.joinDate).toLocaleDateString(
-                            "en-US",
-                            {
-                                year: "numeric",
-                                month: "long",
-                                day: "numeric",
-                            },
-                        )}
+                        value={
+                            employee.joinDate
+                                ? new Date(employee.joinDate).toLocaleDateString(
+                                      "en-US",
+                                      {
+                                          year: "numeric",
+                                          month: "long",
+                                          day: "numeric",
+                                      },
+                                  )
+                                : undefined
+                        }
                     />
                 </CardContent>
             </Card>

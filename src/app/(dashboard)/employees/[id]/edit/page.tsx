@@ -1,55 +1,53 @@
-import { notFound } from "next/navigation";
+"use client";
+
+import * as React from "react";
+import { notFound, useParams } from "next/navigation";
 import { EditEmployeeClient } from "./EditEmployeeClient";
+import { getEmployee } from "@/lib/api/employees";
+import { ApiError } from "@/lib/api/client";
+import { toast } from "@/components/ui/Toast";
 import type { Employee } from "@/types/employee";
 
-const mockEmployees: Employee[] = [
-    {
-        id: "1",
-        name: "Satria Wijaya",
-        email: "satria@koru.com",
-        phone: "+62 812 3456 7890",
-        department: "Engineering",
-        role: "Frontend Developer",
-        status: "Active",
-        joinDate: "2024-01-15",
-    },
-    {
-        id: "2",
-        name: "Jane Doe",
-        email: "jane@koru.com",
-        department: "Human Resources",
-        role: "HR Manager",
-        status: "On Leave",
-        joinDate: "2023-06-01",
-    },
-    {
-        id: "3",
-        name: "Budi Santoso",
-        email: "budi@koru.com",
-        department: "Engineering",
-        role: "Backend Developer",
-        status: "Probation",
-        joinDate: "2024-11-01",
-    },
-    {
-        id: "4",
-        name: "Rina Hartati",
-        email: "rina@koru.com",
-        department: "Sales",
-        role: "Sales Executive",
-        status: "Inactive",
-        joinDate: "2022-03-20",
-    },
-];
+export default function EditEmployeePage() {
+    const params = useParams<{ id: string }>();
+    const [employee, setEmployee] = React.useState<Employee | null>(null);
+    const [isLoading, setIsLoading] = React.useState(true);
+    const [notFoundFlag, setNotFoundFlag] = React.useState(false);
 
-export default async function EditEmployeePage({
-    params,
-}: {
-    params: Promise<{ id: string }>;
-}) {
-    const { id } = await params;
-    const employee = mockEmployees.find((e) => e.id === id);
-    if (!employee) return notFound();
+    React.useEffect(() => {
+        let cancelled = false;
+
+        async function load() {
+            try {
+                const fetched = await getEmployee(params.id);
+                if (!cancelled) setEmployee(fetched);
+            } catch (err) {
+                if (cancelled) return;
+                if (err instanceof ApiError && err.status === 404) {
+                    setNotFoundFlag(true);
+                } else {
+                    toast.error("Couldn't load employee.");
+                }
+            } finally {
+                if (!cancelled) setIsLoading(false);
+            }
+        }
+
+        load();
+        return () => {
+            cancelled = true;
+        };
+    }, [params.id]);
+
+    if (notFoundFlag) {
+        notFound();
+    }
+
+    if (isLoading || !employee) {
+        return (
+            <p className="p-6 text-sm text-neutral">Loading employee...</p>
+        );
+    }
 
     return <EditEmployeeClient employee={employee} />;
 }

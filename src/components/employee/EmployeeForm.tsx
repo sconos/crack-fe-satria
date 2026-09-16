@@ -8,10 +8,9 @@ import { Select } from "@/components/ui/Select";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
 import { AvatarUpload } from "@/components/employee/AvatarUpload";
+import { EmployeePickerField } from "@/components/employee/EmployeePickerField";
 import type { Employee } from "@/types/employee";
-import { departments as departmentRecords } from "@/lib/mock-data/departments";
-
-const departments = departmentRecords.map((d) => d.name);
+import type { Department } from "@/types/department";
 
 const roles = [
     "Frontend Developer",
@@ -25,8 +24,6 @@ const roles = [
     "Operations Manager",
 ];
 
-const statuses = ["Active", "Inactive", "On Leave", "Probation"] as const;
-
 const employmentTypes = ["Full-time", "Part-time", "Contract"] as const;
 
 const employeeSchema = z.object({
@@ -36,16 +33,12 @@ const employeeSchema = z.object({
     dateOfBirth: z.string().min(1, "Date of birth is required"),
     nationalId: z.string().min(1, "National ID is required"),
     address: z.string().min(1, "Address is required"),
-    department: z.string().min(1, "Department is required"),
+    departmentId: z.string().min(1, "Department is required"),
     role: z.string().min(1, "Role is required"),
     employmentType: z.enum(["Full-time", "Part-time", "Contract"], {
         error: () => ({ message: "Employment type is required" }),
     }),
-    manager: z.string().optional(),
     workLocation: z.string().optional(),
-    status: z.enum(["Active", "Inactive", "On Leave", "Probation"], {
-        error: () => ({ message: "Status is required" }),
-    }),
     joinDate: z.string().min(1, "Join date is required"),
     emergencyContactName: z.string().min(1, "Emergency contact name is required"),
     emergencyContactPhone: z.string().min(1, "Emergency contact phone is required"),
@@ -53,15 +46,47 @@ const employeeSchema = z.object({
 
 type EmployeeFormValues = z.infer<typeof employeeSchema>;
 type EmployeeFormErrors = Partial<Record<keyof EmployeeFormValues, string>>;
-type EmployeeFormSubmitValues = EmployeeFormValues & { avatar: string | null };
+type EmployeeFormSubmitValues = EmployeeFormValues & {
+    avatar: string | null;
+    managerId: string | null;
+};
 
 interface EmployeeFormProps {
+    departments: Department[];
+    employees: Employee[];
     initialValues?: Partial<Employee>;
     onSubmit: (values: EmployeeFormSubmitValues) => Promise<void>;
     submitLabel?: string;
 }
 
+function getDescendantIds(employees: Employee[], id: string): Set<string> {
+    const reportsByManager = new Map<string, string[]>();
+    employees.forEach((e) => {
+        if (e.managerId) {
+            reportsByManager.set(e.managerId, [
+                ...(reportsByManager.get(e.managerId) ?? []),
+                e.id,
+            ]);
+        }
+    });
+
+    const result = new Set<string>();
+    const stack = [id];
+    while (stack.length > 0) {
+        const current = stack.pop()!;
+        for (const reportId of reportsByManager.get(current) ?? []) {
+            if (!result.has(reportId)) {
+                result.add(reportId);
+                stack.push(reportId);
+            }
+        }
+    }
+    return result;
+}
+
 function EmployeeForm({
+    departments,
+    employees,
     initialValues,
     onSubmit,
     submitLabel = "Save Employee",
@@ -73,12 +98,10 @@ function EmployeeForm({
         dateOfBirth: initialValues?.dateOfBirth ?? "",
         nationalId: initialValues?.nationalId ?? "",
         address: initialValues?.address ?? "",
-        department: initialValues?.department ?? "",
+        departmentId: initialValues?.departmentId ?? "",
         role: initialValues?.role ?? "",
         employmentType: initialValues?.employmentType ?? "Full-time",
-        manager: initialValues?.manager ?? "",
         workLocation: initialValues?.workLocation ?? "",
-        status: initialValues?.status ?? "Active",
         joinDate: initialValues?.joinDate ?? "",
         emergencyContactName: initialValues?.emergencyContactName ?? "",
         emergencyContactPhone: initialValues?.emergencyContactPhone ?? "",
@@ -88,9 +111,20 @@ function EmployeeForm({
         initialValues?.avatar ?? null,
     );
 
+    const [managerId, setManagerId] = React.useState<string>(
+        initialValues?.managerId ?? "",
+    );
+
     const [errors, setErrors] = React.useState<EmployeeFormErrors>({});
     const [isSubmitting, setIsSubmitting] = React.useState(false);
     const [formError, setFormError] = React.useState<string | null>(null);
+
+    const excludedManagerIds = React.useMemo(() => {
+        if (!initialValues?.id) return new Set<string>();
+        const descendants = getDescendantIds(employees, initialValues.id);
+        descendants.add(initialValues.id);
+        return descendants;
+    }, [employees, initialValues?.id]);
 
     function handleChange(field: keyof EmployeeFormValues, value: string) {
         setValues((prev) => ({ ...prev, [field]: value }));
@@ -119,7 +153,7 @@ function EmployeeForm({
 
         setIsSubmitting(true);
         try {
-            await onSubmit({ ...values, avatar });
+            await onSubmit({ ...values, avatar, managerId: managerId || null });
         } catch (err) {
             setFormError("Something went wrong. Please try again.");
         } finally {
@@ -130,6 +164,12 @@ function EmployeeForm({
     return (
         <form onSubmit={handleSubmit} className="flex flex-col gap-5">
             {formError && <Alert variant="danger">{formError}</Alert>}
+
+            <Alert variant="info">
+                Avatar and emergency contact are saved to the
+                employee&apos;s self-service profile, not from this form
+                yet.
+            </Alert>
 
             <AvatarUpload
                 name={values.name || "New employee"}
@@ -241,22 +281,22 @@ function EmployeeForm({
             <div className="grid gap-4 sm:grid-cols-2">
                 <FormField
                     label="Department"
-                    htmlFor="department"
+                    htmlFor="departmentId"
                     required
-                    error={errors.department}
+                    error={errors.departmentId}
                 >
                     <Select
-                        id="department"
+                        id="departmentId"
                         placeholder="Select department"
-                        error={!!errors.department}
-                        value={values.department}
+                        error={!!errors.departmentId}
+                        value={values.departmentId}
                         onChange={(e) =>
-                            handleChange("department", e.target.value)
+                            handleChange("departmentId", e.target.value)
                         }
                     >
                         {departments.map((d) => (
-                            <option key={d} value={d}>
-                                {d}
+                            <option key={d.id} value={d.id}>
+                                {d.name}
                             </option>
                         ))}
                     </Select>
@@ -284,47 +324,7 @@ function EmployeeForm({
                 </FormField>
             </div>
 
-            {/* Row 4 — Status */}
-            <div className="grid gap-4 sm:grid-cols-2">
-                <FormField
-                    label="Status"
-                    htmlFor="status"
-                    required
-                    error={errors.status}
-                >
-                    <Select
-                        id="status"
-                        error={!!errors.status}
-                        value={values.status}
-                        onChange={(e) => handleChange("status", e.target.value)}
-                    >
-                        {statuses.map((s) => (
-                            <option key={s} value={s}>
-                                {s}
-                            </option>
-                        ))}
-                    </Select>
-                </FormField>
-
-                <FormField
-                    label="Join date"
-                    htmlFor="joinDate"
-                    required
-                    error={errors.joinDate}
-                >
-                    <Input
-                        id="joinDate"
-                        type="date"
-                        error={!!errors.joinDate}
-                        value={values.joinDate}
-                        onChange={(e) =>
-                            handleChange("joinDate", e.target.value)
-                        }
-                    />
-                </FormField>
-            </div>
-
-            {/* Row 5 — Employment type + Manager */}
+            {/* Row 4 — Employment type + Join date */}
             <div className="grid gap-4 sm:grid-cols-2">
                 <FormField
                     label="Employment type"
@@ -348,18 +348,36 @@ function EmployeeForm({
                     </Select>
                 </FormField>
 
-                <FormField label="Reports to" htmlFor="manager">
+                <FormField
+                    label="Join date"
+                    htmlFor="joinDate"
+                    required
+                    error={errors.joinDate}
+                >
                     <Input
-                        id="manager"
-                        placeholder="e.g. Budi Santoso"
-                        value={values.manager}
-                        onChange={(e) => handleChange("manager", e.target.value)}
+                        id="joinDate"
+                        type="date"
+                        error={!!errors.joinDate}
+                        value={values.joinDate}
+                        onChange={(e) =>
+                            handleChange("joinDate", e.target.value)
+                        }
                     />
                 </FormField>
             </div>
 
-            {/* Row 6 — Work location */}
+            {/* Row 5 — Manager + Work location */}
             <div className="grid gap-4 sm:grid-cols-2">
+                <EmployeePickerField
+                    label="Reports to"
+                    htmlFor="managerId"
+                    employees={employees}
+                    excludeIds={excludedManagerIds}
+                    value={managerId}
+                    onChange={setManagerId}
+                    placeholder="Unassigned"
+                />
+
                 <FormField label="Work location" htmlFor="workLocation">
                     <Input
                         id="workLocation"
@@ -372,7 +390,7 @@ function EmployeeForm({
                 </FormField>
             </div>
 
-            {/* Row 7 — Emergency contact */}
+            {/* Row 6 — Emergency contact */}
             <div className="grid gap-4 sm:grid-cols-2 border-t border-neutral/10 pt-4">
                 <FormField
                     label="Emergency contact name"

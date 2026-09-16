@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/components/auth/AuthProvider";
 
 export default function AuthGroupLayout({
     children,

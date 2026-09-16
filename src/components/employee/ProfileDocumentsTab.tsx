@@ -1,10 +1,97 @@
-import { FileText } from "lucide-react";
+"use client";
+
+import * as React from "react";
+import { FileText, Download } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import { toast } from "@/components/ui/Toast";
 import { DocumentStatusBadge } from "@/components/portal/DocumentStatusBadge";
-import { getDocumentsForEmployee } from "@/lib/mock-data/documents";
+import {
+    getDocuments,
+    reviewDocument,
+    downloadDocument,
+    type EmployeeDocumentWithDetail,
+} from "@/lib/api/documents";
 
 export function ProfileDocumentsTab({ employeeId }: { employeeId: string }) {
-    const documents = getDocumentsForEmployee(employeeId);
+    const [documents, setDocuments] = React.useState<
+        EmployeeDocumentWithDetail[]
+    >([]);
+    const [isLoading, setIsLoading] = React.useState(true);
+    const [actioningId, setActioningId] = React.useState<string | null>(null);
+
+    React.useEffect(() => {
+        let cancelled = false;
+
+        async function load() {
+            try {
+                const { documents: fetched } = await getDocuments({
+                    employeeId,
+                    limit: 100,
+                });
+                if (!cancelled) setDocuments(fetched);
+            } catch {
+                if (!cancelled) toast.error("Couldn't load documents.");
+            } finally {
+                if (!cancelled) setIsLoading(false);
+            }
+        }
+
+        load();
+        return () => {
+            cancelled = true;
+        };
+    }, [employeeId]);
+
+    async function handleVerify(id: string) {
+        setActioningId(id);
+        try {
+            const updated = await reviewDocument(id, "VERIFIED");
+            setDocuments((prev) =>
+                prev.map((d) => (d.id === id ? updated : d)),
+            );
+            toast.success("Document verified");
+        } catch {
+            toast.error("Couldn't verify document. Try again.");
+        } finally {
+            setActioningId(null);
+        }
+    }
+
+    async function handleReject(id: string) {
+        // ReviewDocumentDto requires a rejectionReason when rejecting.
+        const reason = window.prompt("Reason for rejecting this document?");
+        if (!reason || !reason.trim()) return;
+
+        setActioningId(id);
+        try {
+            const updated = await reviewDocument(id, "REJECTED", reason.trim());
+            setDocuments((prev) =>
+                prev.map((d) => (d.id === id ? updated : d)),
+            );
+            toast.error("Document rejected");
+        } catch {
+            toast.error("Couldn't reject document. Try again.");
+        } finally {
+            setActioningId(null);
+        }
+    }
+
+    async function handleDownload(doc: EmployeeDocumentWithDetail) {
+        try {
+            await downloadDocument(doc.id, doc.fileName);
+        } catch {
+            toast.error("Couldn't download document. Try again.");
+        }
+    }
+
+    if (isLoading) {
+        return (
+            <p className="px-5 py-10 text-center text-sm text-neutral">
+                Loading documents...
+            </p>
+        );
+    }
 
     if (documents.length === 0) {
         return (
@@ -43,7 +130,39 @@ export function ProfileDocumentsTab({ employeeId }: { employeeId: string }) {
                                 </p>
                             </div>
                         </div>
-                        <DocumentStatusBadge status={doc.status} />
+                        <div className="flex shrink-0 items-center gap-2">
+                            <DocumentStatusBadge status={doc.status} />
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0"
+                                onClick={() => handleDownload(doc)}
+                            >
+                                <Download className="h-4 w-4" />
+                                <span className="sr-only">
+                                    Download {doc.fileName}
+                                </span>
+                            </Button>
+                            {doc.status === "pending-review" && (
+                                <>
+                                    <Button
+                                        size="sm"
+                                        loading={actioningId === doc.id}
+                                        onClick={() => handleVerify(doc.id)}
+                                    >
+                                        Verify
+                                    </Button>
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        loading={actioningId === doc.id}
+                                        onClick={() => handleReject(doc.id)}
+                                    >
+                                        Reject
+                                    </Button>
+                                </>
+                            )}
+                        </div>
                     </CardContent>
                 </Card>
             ))}

@@ -9,7 +9,7 @@ export function StatCard({
 }: {
     label: string;
     value: string | number;
-    accent: string; // e.g. "border-l-success", "border-l-warning"
+    accent: string;
 }) {
     return (
         <Card className={cn("border-l-4", accent)}>

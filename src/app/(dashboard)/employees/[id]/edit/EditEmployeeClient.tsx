@@ -1,14 +1,18 @@
 "use client";
 
+import * as React from "react";
 import { useRouter } from "next/navigation";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { Card, CardContent } from "@/components/ui/Card";
 import {
     EmployeeForm,
-    EmployeeFormSubmitValues,
-    type EmployeeFormValues,
+    type EmployeeFormSubmitValues,
 } from "@/components/employee/EmployeeForm";
+import { getDepartments } from "@/lib/api/departments";
+import { updateEmployee } from "@/lib/api/employees";
+import { toast } from "@/components/ui/Toast";
+import type { Department } from "@/types/department";
 import type { Employee } from "@/types/employee";
 
 interface EditEmployeeClientProps {
@@ -17,11 +21,34 @@ interface EditEmployeeClientProps {
 
 export function EditEmployeeClient({ employee }: EditEmployeeClientProps) {
     const router = useRouter();
+    const [departments, setDepartments] = React.useState<Department[]>([]);
+    const [isLoadingDepartments, setIsLoadingDepartments] = React.useState(true);
+
+    React.useEffect(() => {
+        let cancelled = false;
+
+        async function loadDepartments() {
+            try {
+                const { departments: fetched } = await getDepartments({
+                    limit: 100,
+                });
+                if (!cancelled) setDepartments(fetched);
+            } catch {
+                if (!cancelled) toast.error("Couldn't load departments.");
+            } finally {
+                if (!cancelled) setIsLoadingDepartments(false);
+            }
+        }
+
+        loadDepartments();
+        return () => {
+            cancelled = true;
+        };
+    }, []);
 
     async function handleSubmit(values: EmployeeFormSubmitValues) {
-        // TODO: replace with real API call
-        await new Promise((resolve) => setTimeout(resolve, 800));
-        console.log("Updated employee:", values);
+        await updateEmployee(employee.id, values);
+        toast.success(`${values.name} updated`);
         router.push(`/employees/${employee.id}`);
     }
 
@@ -34,11 +61,18 @@ export function EditEmployeeClient({ employee }: EditEmployeeClientProps) {
                 />
                 <Card>
                     <CardContent className="p-6">
-                        <EmployeeForm
-                            initialValues={employee}
-                            onSubmit={handleSubmit}
-                            submitLabel="Save Changes"
-                        />
+                        {isLoadingDepartments ? (
+                            <p className="text-sm text-neutral">
+                                Loading form...
+                            </p>
+                        ) : (
+                            <EmployeeForm
+                                departments={departments}
+                                initialValues={employee}
+                                onSubmit={handleSubmit}
+                                submitLabel="Save Changes"
+                            />
+                        )}
                     </CardContent>
                 </Card>
             </div>

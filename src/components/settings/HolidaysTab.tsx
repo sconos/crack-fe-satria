@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import * as React from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import {
@@ -14,33 +14,61 @@ import {
 } from "@/components/ui/Table";
 import { HolidayModal, type HolidayInput } from "./HolidayModal";
 import { toast } from "@/components/ui/Toast";
+import {
+    getPublicHolidays,
+    createPublicHoliday,
+    deletePublicHoliday,
+} from "@/lib/api/public-holidays";
 import type { PublicHoliday } from "@/types/leave";
 
-export function HolidaysTab({
-    initialHolidays,
-}: {
-    initialHolidays: PublicHoliday[];
-}) {
-    const [holidays, setHolidays] = useState(initialHolidays);
-    const [modalOpen, setModalOpen] = useState(false);
+export function HolidaysTab() {
+    const [holidays, setHolidays] = React.useState<PublicHoliday[]>([]);
+    const [isLoading, setIsLoading] = React.useState(true);
+    const [modalOpen, setModalOpen] = React.useState(false);
 
-    const sorted = useMemo(
-        () => [...holidays].sort((a, b) => a.date.localeCompare(b.date)),
-        [holidays],
-    );
+    React.useEffect(() => {
+        let cancelled = false;
 
-    function handleAdd(data: HolidayInput) {
-        setHolidays((prev) => [
-            ...prev,
-            { id: `h${Date.now()}`, ...data },
-        ]);
-        toast.success(`${data.name} added`);
+        async function load() {
+            try {
+                // The backend already orders by date, so no client-side
+                // sort is needed here.
+                const fetched = await getPublicHolidays();
+                if (!cancelled) setHolidays(fetched);
+            } catch {
+                if (!cancelled) toast.error("Couldn't load public holidays.");
+            } finally {
+                if (!cancelled) setIsLoading(false);
+            }
+        }
+
+        load();
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    async function handleAdd(data: HolidayInput) {
+        try {
+            const created = await createPublicHoliday(data);
+            setHolidays((prev) =>
+                [...prev, created].sort((a, b) => a.date.localeCompare(b.date)),
+            );
+            toast.success(`${data.name} added`);
+        } catch {
+            toast.error("Couldn't add holiday. Try again.");
+        }
     }
 
-    function handleDelete(id: string) {
+    async function handleDelete(id: string) {
         const holiday = holidays.find((h) => h.id === id);
-        setHolidays((prev) => prev.filter((h) => h.id !== id));
-        if (holiday) toast.success(`${holiday.name} removed`);
+        try {
+            await deletePublicHoliday(id);
+            setHolidays((prev) => prev.filter((h) => h.id !== id));
+            if (holiday) toast.success(`${holiday.name} removed`);
+        } catch {
+            toast.error("Couldn't remove holiday. Try again.");
+        }
     }
 
     return (
@@ -61,10 +89,14 @@ export function HolidaysTab({
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {sorted.length === 0 ? (
+                    {isLoading ? (
+                        <TableEmpty colSpan={3}>
+                            Loading public holidays...
+                        </TableEmpty>
+                    ) : holidays.length === 0 ? (
                         <TableEmpty colSpan={3}>No public holidays configured yet.</TableEmpty>
                     ) : (
-                        sorted.map((holiday) => (
+                        holidays.map((holiday) => (
                             <TableRow key={holiday.id}>
                                 <TableCell className="font-medium text-primary-dark">
                                     {holiday.name}

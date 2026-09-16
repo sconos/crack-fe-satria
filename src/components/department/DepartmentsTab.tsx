@@ -24,38 +24,28 @@ export function DepartmentsTab({
     const [view, setView] = useState<ViewMode>("list");
     const [query, setQuery] = useState("");
 
-    const departmentsWithCounts = useMemo(
-        () =>
-            departments.map((d) => ({
-                ...d,
-                employeeCount: employees.filter((e) => e.department === d.name)
-                    .length,
-            })),
-        [departments, employees],
-    );
-
-    const withoutHead = departmentsWithCounts.filter((d) => !d.headId).length;
-    const avgTeamSize = departmentsWithCounts.length
-        ? Math.round(employees.length / departmentsWithCounts.length)
+    const withoutHead = departments.filter((d) => !d.headId).length;
+    const avgTeamSize = departments.length
+        ? Math.round(employees.length / departments.length)
         : 0;
 
     const filteredDepartments = useMemo(() => {
-        if (!query.trim()) return departmentsWithCounts;
+        if (!query.trim()) return departments;
         const q = query.toLowerCase();
-        return departmentsWithCounts.filter(
+        return departments.filter(
             (d) =>
                 d.name.toLowerCase().includes(q) ||
                 d.code.toLowerCase().includes(q) ||
                 d.headName?.toLowerCase().includes(q),
         );
-    }, [departmentsWithCounts, query]);
+    }, [departments, query]);
 
     return (
         <div className="flex flex-col gap-6">
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                 <StatCard
                     label="Departments"
-                    value={departmentsWithCounts.length}
+                    value={departments.length}
                     accent="border-l-success"
                 />
                 <StatCard
@@ -129,7 +119,7 @@ export function DepartmentsTab({
                         </p>
                     )
                 ) : (
-                    <DepartmentOrgChart departments={departmentsWithCounts} />
+                    <DepartmentOrgChart departments={departments} />
                 )}
             </div>
         </div>

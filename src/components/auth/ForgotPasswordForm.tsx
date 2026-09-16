@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
 import { toast } from "@/components/ui/Toast";
 import { validateEmail } from "@/lib/validation";
+import { forgotPassword } from "@/lib/api/auth";
 
 export function ForgotPasswordForm() {
     const [email, setEmail] = React.useState("");
@@ -22,8 +23,7 @@ export function ForgotPasswordForm() {
 
         setIsSubmitting(true);
         try {
-            // TODO: replace with real password reset call
-            await new Promise((resolve) => setTimeout(resolve, 800));
+            await forgotPassword(email);
             setSent(true);
         } catch {
             toast.error("Couldn't send reset link. Try again.");

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import * as React from "react";
 import { Search } from "lucide-react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { PageHeader } from "@/components/dashboard/PageHeader";
@@ -15,169 +15,54 @@ import {
     TableCell,
     TableEmpty,
 } from "@/components/ui/Table";
-import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
+import { Badge } from "@/components/ui/Badge";
 import { toast } from "@/components/ui/Toast";
+import { AttendanceStatusBadge } from "@/components/attendance/AttendanceStatusBadge";
 import { cn } from "@/lib/util";
+import {
+    getAttendance,
+    type AttendanceRecordWithEmployee,
+} from "@/lib/api/attendance";
+import {
+    getCorrectionRequests,
+    reviewCorrectionRequest,
+    type CorrectionListResult,
+} from "@/lib/api/attendance-corrections";
+import { getDepartments } from "@/lib/api/departments";
+import { todayDateString } from "@/lib/api/mappers/attendance-mappers";
+import { ApiError } from "@/lib/api/client";
+import type { AttendanceStatus } from "@/types/attendance";
+import type { AttendanceCorrectionRequest } from "@/types/attendance-correction";
+import type { Department } from "@/types/department";
 
-type AttendanceStatus = "On time" | "Late" | "Absent" | "On leave" | "Remote";
-type BadgeVariant = "success" | "warning" | "danger" | "info" | "neutral";
+const ALL_DEPARTMENTS = "All departments";
 
-type AttendanceRecord = {
-    id: string;
-    name: string;
-    initials: string;
-    department: string;
-    clockIn: string | null;
-    clockOut: string | null;
-    hours: string;
-    status: AttendanceStatus;
-};
-
-type CorrectionRequest = {
-    id: string;
-    name: string;
-    initials: string;
-    department: string;
-    date: string;
-    type: "Missed clock-out" | "Wrong clock-in time" | "Manual entry";
-    requested: string;
-    reason: string;
-};
-
-const badgeVariant: Record<AttendanceStatus, BadgeVariant> = {
-    "On time": "success",
-    Late: "warning",
-    Absent: "danger",
-    "On leave": "warning",
-    Remote: "info",
-};
-
-const departments = [
-    "All departments",
-    "Engineering",
-    "Product Design",
-    "People Ops",
-    "Finance",
+const statusOptions: { label: string; value: "All" | AttendanceStatus }[] = [
+    { label: "All statuses", value: "All" },
+    { label: "On time", value: "on-time" },
+    { label: "Late", value: "late" },
+    { label: "Absent", value: "absent" },
+    { label: "On leave", value: "on-leave" },
 ];
 
-const initialRecords: AttendanceRecord[] = [
-    {
-        id: "1",
-        name: "Amara Yuwono",
-        initials: "AY",
-        department: "Product Design",
-        clockIn: "08:52",
-        clockOut: "17:41",
-        hours: "8h 49m",
-        status: "On time",
-    },
-    {
-        id: "2",
-        name: "Bagas Wirawan",
-        initials: "BW",
-        department: "Engineering",
-        clockIn: "09:14",
-        clockOut: "18:02",
-        hours: "8h 48m",
-        status: "Late",
-    },
-    {
-        id: "3",
-        name: "Citra Salsabila",
-        initials: "CS",
-        department: "People Ops",
-        clockIn: null,
-        clockOut: null,
-        hours: "—",
-        status: "On leave",
-    },
-    {
-        id: "4",
-        name: "Dimas Prakoso",
-        initials: "DP",
-        department: "Finance",
-        clockIn: null,
-        clockOut: null,
-        hours: "—",
-        status: "Absent",
-    },
-    {
-        id: "5",
-        name: "Elang Nararya",
-        initials: "EN",
-        department: "Engineering",
-        clockIn: "08:47",
-        clockOut: "17:30",
-        hours: "8h 43m",
-        status: "On time",
-    },
-    {
-        id: "6",
-        name: "Farah Az-Zahra",
-        initials: "FA",
-        department: "Engineering",
-        clockIn: "09:01",
-        clockOut: "—",
-        hours: "—",
-        status: "Remote",
-    },
-    {
-        id: "7",
-        name: "Guntur Aditama",
-        initials: "GA",
-        department: "Product Design",
-        clockIn: "09:22",
-        clockOut: "18:10",
-        hours: "8h 48m",
-        status: "Late",
-    },
-    {
-        id: "8",
-        name: "Hana Puspita",
-        initials: "HP",
-        department: "People Ops",
-        clockIn: "08:55",
-        clockOut: "17:38",
-        hours: "8h 43m",
-        status: "On time",
-    },
-];
+function initialsFrom(name: string): string {
+    const parts = name.trim().split(/\s+/);
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
 
-const initialApprovals: CorrectionRequest[] = [
-    {
-        id: "a1",
-        name: "Farah Az-Zahra",
-        initials: "FA",
-        department: "Engineering",
-        date: "Jul 7, 2026",
-        type: "Missed clock-out",
-        requested: "Clock-out at 18:15",
-        reason: "Forgot to tap out after a client call ran late.",
-    },
-    {
-        id: "a2",
-        name: "Guntur Aditama",
-        initials: "GA",
-        department: "Product Design",
-        date: "Jul 6, 2026",
-        type: "Wrong clock-in time",
-        requested: "Clock-in at 08:58 instead of 09:22",
-        reason: "Badge reader was down at the front desk this morning.",
-    },
-    {
-        id: "a3",
-        name: "Dimas Prakoso",
-        initials: "DP",
-        department: "Finance",
-        date: "Jul 8, 2026",
-        type: "Manual entry",
-        requested: "Full day, on site",
-        reason: "Worked from the Surabaya office, no badge access there yet.",
-    },
-];
+function computeHours(clockIn: string | null, clockOut: string | null): string {
+    if (!clockIn || !clockOut) return "—";
+    const [inH, inM] = clockIn.split(":").map(Number);
+    const [outH, outM] = clockOut.split(":").map(Number);
+    const totalMinutes = outH * 60 + outM - (inH * 60 + inM);
+    const h = Math.floor(totalMinutes / 60);
+    const m = totalMinutes % 60;
+    return `${h}h ${m}m`;
+}
 
 function Avatar({ initials }: { initials: string }) {
     return (
@@ -188,50 +73,171 @@ function Avatar({ initials }: { initials: string }) {
 }
 
 export default function AttendancePage() {
-    const [tab, setTab] = useState<"log" | "approvals">("log");
-    const [search, setSearch] = useState("");
-    const [department, setDepartment] = useState("All departments");
-    const [statusFilter, setStatusFilter] = useState<"All" | AttendanceStatus>(
-        "All",
-    );
-    const [approvals, setApprovals] = useState(initialApprovals);
+    const [tab, setTab] = React.useState<"log" | "approvals">("log");
+    const [search, setSearch] = React.useState("");
+    const [department, setDepartment] = React.useState(ALL_DEPARTMENTS);
+    const [statusFilter, setStatusFilter] = React.useState<
+        "All" | AttendanceStatus
+    >("All");
 
-    const filteredRecords = useMemo(() => {
-        return initialRecords.filter((r) => {
-            const matchesSearch = r.name
+    const [records, setRecords] = React.useState<AttendanceRecordWithEmployee[]>(
+        [],
+    );
+    const [departments, setDepartments] = React.useState<Department[]>([]);
+    const [isLoading, setIsLoading] = React.useState(true);
+
+    const [corrections, setCorrections] = React.useState<
+        AttendanceCorrectionRequest[]
+    >([]);
+    const [isLoadingCorrections, setIsLoadingCorrections] =
+        React.useState(true);
+    const [correctionsLoaded, setCorrectionsLoaded] = React.useState(false);
+    const [reviewingId, setReviewingId] = React.useState<string | null>(null);
+
+    const today = todayDateString();
+
+    // Status and date are filtered server-side. Department and search are
+    // filtered client-side below: QueryAttendanceDto supports neither.
+    React.useEffect(() => {
+        let cancelled = false;
+
+        async function load() {
+            setIsLoading(true);
+            try {
+                const { records: fetched } = await getAttendance({
+                    limit: 100,
+                    startDate: today,
+                    endDate: today,
+                    ...(statusFilter !== "All" && { status: statusFilter }),
+                });
+                if (!cancelled) setRecords(fetched);
+            } catch {
+                if (!cancelled) toast.error("Couldn't load attendance.");
+            } finally {
+                if (!cancelled) setIsLoading(false);
+            }
+        }
+
+        load();
+        return () => {
+            cancelled = true;
+        };
+    }, [today, statusFilter]);
+
+    // Lazy-loaded on first switch to the Approvals tab rather than on
+    // mount, since most visits to this page are for the daily log.
+    React.useEffect(() => {
+        if (tab !== "approvals" || correctionsLoaded) return;
+        let cancelled = false;
+
+        async function loadCorrections() {
+            setIsLoadingCorrections(true);
+            try {
+                const res: CorrectionListResult = await getCorrectionRequests({
+                    limit: 100,
+                });
+                if (!cancelled) {
+                    setCorrections(res.requests);
+                    setCorrectionsLoaded(true);
+                }
+            } catch {
+                if (!cancelled) toast.error("Couldn't load correction requests.");
+            } finally {
+                if (!cancelled) setIsLoadingCorrections(false);
+            }
+        }
+
+        loadCorrections();
+        return () => {
+            cancelled = true;
+        };
+    }, [tab, correctionsLoaded]);
+
+    React.useEffect(() => {
+        let cancelled = false;
+
+        async function loadDepartments() {
+            try {
+                const { departments: fetched } = await getDepartments({
+                    limit: 100,
+                });
+                if (!cancelled) setDepartments(fetched);
+            } catch {
+                // Non-fatal: the filter just stays on "All departments".
+            }
+        }
+
+        loadDepartments();
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    async function handleApproveCorrection(id: string) {
+        setReviewingId(id);
+        try {
+            const updated = await reviewCorrectionRequest(id, "approved");
+            setCorrections((prev) =>
+                prev.map((c) => (c.id === id ? updated : c)),
+            );
+            toast.success("Correction approved.");
+        } catch (err) {
+            toast.error(
+                err instanceof ApiError
+                    ? err.message
+                    : "Couldn't approve this request. Try again.",
+            );
+        } finally {
+            setReviewingId(null);
+        }
+    }
+
+    async function handleRejectCorrection(id: string) {
+        const reason = window.prompt("Reason for rejecting this correction?");
+        if (!reason || !reason.trim()) return;
+
+        setReviewingId(id);
+        try {
+            const updated = await reviewCorrectionRequest(
+                id,
+                "rejected",
+                reason.trim(),
+            );
+            setCorrections((prev) =>
+                prev.map((c) => (c.id === id ? updated : c)),
+            );
+            toast.error("Correction rejected.");
+        } catch (err) {
+            toast.error(
+                err instanceof ApiError
+                    ? err.message
+                    : "Couldn't reject this request. Try again.",
+            );
+        } finally {
+            setReviewingId(null);
+        }
+    }
+
+    const filteredRecords = React.useMemo(() => {
+        return records.filter((r) => {
+            const matchesSearch = (r.employeeName ?? "")
                 .toLowerCase()
                 .includes(search.toLowerCase());
             const matchesDept =
-                department === "All departments" || r.department === department;
-            const matchesStatus =
-                statusFilter === "All" || r.status === statusFilter;
-            return matchesSearch && matchesDept && matchesStatus;
+                department === ALL_DEPARTMENTS ||
+                r.departmentName === department;
+            return matchesSearch && matchesDept;
         });
-    }, [search, department, statusFilter]);
+    }, [records, search, department]);
 
-    const stats = useMemo(() => {
-        const present = initialRecords.filter(
-            (r) => r.status === "On time" || r.status === "Remote",
-        ).length;
-        const late = initialRecords.filter((r) => r.status === "Late").length;
-        const absent = initialRecords.filter(
-            (r) => r.status === "Absent",
-        ).length;
-        const onLeave = initialRecords.filter(
-            (r) => r.status === "On leave",
-        ).length;
+    // Counts reflect everything loaded for today, not the filtered view.
+    const stats = React.useMemo(() => {
+        const present = records.filter((r) => r.status === "on-time").length;
+        const late = records.filter((r) => r.status === "late").length;
+        const absent = records.filter((r) => r.status === "absent").length;
+        const onLeave = records.filter((r) => r.status === "on-leave").length;
         return { present, late, absent, onLeave };
-    }, []);
-
-    function handleApprove(request: CorrectionRequest) {
-        setApprovals((prev) => prev.filter((a) => a.id !== request.id));
-        toast.success(`Approved ${request.name}'s correction`);
-    }
-
-    function handleReject(request: CorrectionRequest) {
-        setApprovals((prev) => prev.filter((a) => a.id !== request.id));
-        toast.error(`Rejected ${request.name}'s correction`);
-    }
+    }, [records]);
 
     return (
         <DashboardLayout title="Attendance">
@@ -242,7 +248,9 @@ export default function AttendancePage() {
                     action={<Button variant="outline">Export CSV</Button>}
                 />
 
-                {/* Stats */}
+                {/* Stats — note these only count records that exist for today.
+                    Employees with no record at all aren't counted as absent;
+                    that needs a backend rollup endpoint to do properly. */}
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                     <StatCard
                         label="Present today"
@@ -294,9 +302,6 @@ export default function AttendancePage() {
                         )}
                     >
                         Approvals
-                        {approvals.length > 0 && (
-                            <Badge variant="warning">{approvals.length}</Badge>
-                        )}
                         {tab === "approvals" && (
                             <span className="absolute -bottom-px left-0 h-0.5 w-full bg-primary" />
                         )}
@@ -319,9 +324,12 @@ export default function AttendancePage() {
                                 onChange={(e) => setDepartment(e.target.value)}
                                 className="sm:w-48"
                             >
+                                <option value={ALL_DEPARTMENTS}>
+                                    {ALL_DEPARTMENTS}
+                                </option>
                                 {departments.map((d) => (
-                                    <option key={d} value={d}>
-                                        {d}
+                                    <option key={d.id} value={d.name}>
+                                        {d.name}
                                     </option>
                                 ))}
                             </Select>
@@ -336,12 +344,11 @@ export default function AttendancePage() {
                                 }
                                 className="sm:w-48"
                             >
-                                <option value="All">All statuses</option>
-                                <option value="On time">On time</option>
-                                <option value="Late">Late</option>
-                                <option value="Absent">Absent</option>
-                                <option value="On leave">On leave</option>
-                                <option value="Remote">Remote</option>
+                                {statusOptions.map((o) => (
+                                    <option key={o.value} value={o.value}>
+                                        {o.label}
+                                    </option>
+                                ))}
                             </Select>
                         </div>
 
@@ -357,108 +364,181 @@ export default function AttendancePage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {filteredRecords.map((r) => (
-                                    <TableRow key={r.id}>
-                                        <TableCell>
-                                            <div className="flex items-center gap-3">
-                                                <Avatar initials={r.initials} />
-                                                <span className="font-medium text-primary-dark">
-                                                    {r.name}
-                                                </span>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className="text-neutral">
-                                            {r.department}
-                                        </TableCell>
-                                        <TableCell className="text-neutral">
-                                            {r.clockIn ?? "—"}
-                                        </TableCell>
-                                        <TableCell className="text-neutral">
-                                            {r.clockOut ?? "—"}
-                                        </TableCell>
-                                        <TableCell className="text-neutral">
-                                            {r.hours}
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge
-                                                variant={badgeVariant[r.status]}
-                                            >
-                                                {r.status}
-                                            </Badge>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                                {filteredRecords.length === 0 && (
+                                {isLoading ? (
+                                    <TableEmpty colSpan={6}>
+                                        Loading attendance...
+                                    </TableEmpty>
+                                ) : filteredRecords.length === 0 ? (
                                     <TableEmpty colSpan={6}>
                                         No one matches these filters. Try a
                                         different search or clear a filter.
                                     </TableEmpty>
+                                ) : (
+                                    filteredRecords.map((r) => (
+                                        <TableRow key={r.id}>
+                                            <TableCell>
+                                                <div className="flex items-center gap-3">
+                                                    <Avatar
+                                                        initials={initialsFrom(
+                                                            r.employeeName ?? "?",
+                                                        )}
+                                                    />
+                                                    <span className="font-medium text-primary-dark">
+                                                        {r.employeeName ?? "—"}
+                                                    </span>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="text-neutral">
+                                                {r.departmentName ?? "—"}
+                                            </TableCell>
+                                            <TableCell className="text-neutral">
+                                                {r.clockIn ?? "—"}
+                                            </TableCell>
+                                            <TableCell className="text-neutral">
+                                                {r.clockOut ?? "—"}
+                                            </TableCell>
+                                            <TableCell className="text-neutral">
+                                                {computeHours(
+                                                    r.clockIn,
+                                                    r.clockOut,
+                                                )}
+                                            </TableCell>
+                                            <TableCell>
+                                                <AttendanceStatusBadge
+                                                    status={r.status}
+                                                />
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
                                 )}
                             </TableBody>
                         </Table>
                     </div>
                 )}
 
-                {/* Approvals */}
+                {/* Approvals
+                    TODO: no backend yet. There's no correction-request model
+                    in the Prisma schema and no endpoints, so this needs a new
+                    NestJS module (model + controller/service/repository +
+                    approve/reject routes) before it can be wired up. The old
+                    mock list and approve/reject handlers were removed rather
+                    than left in place looking functional. */}
+                {/* Approvals — now backed by the attendance-corrections module */}
                 {tab === "approvals" && (
-                    <div className="flex flex-col gap-4">
-                        {approvals.length === 0 && (
-                            <Card>
-                                <CardContent className="py-10 text-center">
-                                    <p className="text-sm font-medium text-primary-dark">
-                                        Nothing waiting on you
-                                    </p>
-                                    <p className="mt-1 text-sm text-neutral">
-                                        New attendance corrections will show up
-                                        here as they come in.
-                                    </p>
-                                </CardContent>
-                            </Card>
-                        )}
-                        {approvals.map((a) => (
-                            <Card key={a.id}>
-                                <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                                    <div className="flex items-start gap-3">
-                                        <Avatar initials={a.initials} />
-                                        <div>
-                                            <div className="flex flex-wrap items-center gap-2">
-                                                <p className="text-sm font-medium text-primary-dark">
-                                                    {a.name}
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Employee</TableHead>
+                                <TableHead>Date</TableHead>
+                                <TableHead>Original</TableHead>
+                                <TableHead>Requested</TableHead>
+                                <TableHead>Reason</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead className="text-right">
+                                    Actions
+                                </TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {isLoadingCorrections ? (
+                                <TableEmpty colSpan={7}>
+                                    Loading correction requests...
+                                </TableEmpty>
+                            ) : corrections.length === 0 ? (
+                                <TableEmpty colSpan={7}>
+                                    No correction requests yet.
+                                </TableEmpty>
+                            ) : (
+                                corrections.map((c) => (
+                                    <TableRow key={c.id}>
+                                        <TableCell>
+                                            <div>
+                                                <p className="font-medium text-primary-dark">
+                                                    {c.employeeName ?? "—"}
                                                 </p>
-                                                <span className="text-xs text-neutral">
-                                                    {a.department} · {a.date}
-                                                </span>
+                                                <p className="text-xs text-neutral">
+                                                    {c.employeeCode}
+                                                </p>
                                             </div>
-                                            <p className="mt-1 text-xs font-medium uppercase tracking-wide text-secondary">
-                                                {a.type}
-                                            </p>
-                                            <p className="mt-1 text-sm text-primary-dark">
-                                                {a.requested}
-                                            </p>
-                                            <p className="mt-1 text-sm text-neutral">
-                                                {a.reason}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <div className="flex shrink-0 gap-2 sm:flex-col sm:items-end">
-                                        <Button
-                                            size="sm"
-                                            onClick={() => handleApprove(a)}
-                                        >
-                                            Approve
-                                        </Button>
-                                        <Button
-                                            size="sm"
-                                            variant="outline"
-                                            onClick={() => handleReject(a)}
-                                        >
-                                            Reject
-                                        </Button>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        ))}
-                    </div>
+                                        </TableCell>
+                                        <TableCell className="text-neutral">
+                                            {new Date(
+                                                c.date,
+                                            ).toLocaleDateString("en-US", {
+                                                month: "short",
+                                                day: "numeric",
+                                            })}
+                                        </TableCell>
+                                        <TableCell className="text-neutral">
+                                            {c.originalClockIn ?? "—"} –{" "}
+                                            {c.originalClockOut ?? "—"}
+                                        </TableCell>
+                                        <TableCell className="text-primary-dark">
+                                            {c.requestedClockIn ?? "—"} –{" "}
+                                            {c.requestedClockOut ?? "—"}
+                                        </TableCell>
+                                        <TableCell className="max-w-xs text-neutral">
+                                            {c.reason}
+                                        </TableCell>
+                                        <TableCell>
+                                            <Badge
+                                                variant={
+                                                    c.status === "approved"
+                                                        ? "success"
+                                                        : c.status ===
+                                                            "rejected"
+                                                          ? "danger"
+                                                          : "warning"
+                                                }
+                                                dot
+                                            >
+                                                {c.status === "pending"
+                                                    ? "Pending"
+                                                    : c.status === "approved"
+                                                      ? "Approved"
+                                                      : "Rejected"}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            {c.status === "pending" && (
+                                                <div className="flex justify-end gap-2">
+                                                    <Button
+                                                        size="sm"
+                                                        loading={
+                                                            reviewingId ===
+                                                            c.id
+                                                        }
+                                                        onClick={() =>
+                                                            handleApproveCorrection(
+                                                                c.id,
+                                                            )
+                                                        }
+                                                    >
+                                                        Approve
+                                                    </Button>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        loading={
+                                                            reviewingId ===
+                                                            c.id
+                                                        }
+                                                        onClick={() =>
+                                                            handleRejectCorrection(
+                                                                c.id,
+                                                            )
+                                                        }
+                                                    >
+                                                        Reject
+                                                    </Button>
+                                                </div>
+                                            )}
+                                        </TableCell>
+                                    </TableRow>
+                                ))
+                            )}
+                        </TableBody>
+                    </Table>
                 )}
             </div>
         </DashboardLayout>

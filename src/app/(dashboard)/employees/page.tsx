@@ -15,8 +15,8 @@ import { DepartmentsTab } from "@/components/department/DepartmentsTab";
 import { EmployeeOrgChart } from "@/components/employee/EmployeeOrgChart";
 import { Button } from "@/components/ui/Button";
 import { toast } from "@/components/ui/Toast";
-import { employees as initialEmployees } from "@/lib/mock-data/employees";
-import { departments as initialDepartments } from "@/lib/mock-data/departments";
+import { getDepartments, updateDepartmentStatus } from "@/lib/api/departments";
+import { getEmployees, updateEmployeeStatus } from "@/lib/api/employees";
 import type { Department } from "@/types/department";
 import type { Employee } from "@/types/employee";
 
@@ -33,10 +33,10 @@ function EmployeesPageContent() {
         searchParams.get("tab") === "departments" ? "departments" : "employees";
 
     const [tab, setTab] = React.useState(initialTab);
-    const [employees, setEmployees] = React.useState<Employee[]>(initialEmployees);
-    const [departments, setDepartments] = React.useState<Department[]>(
-        initialDepartments,
-    );
+    const [employees, setEmployees] = React.useState<Employee[]>([]);
+    const [isLoadingEmployees, setIsLoadingEmployees] = React.useState(true);
+    const [departments, setDepartments] = React.useState<Department[]>([]);
+    const [isLoadingDepartments, setIsLoadingDepartments] = React.useState(true);
     const [deactivateTarget, setDeactivateTarget] =
         React.useState<Employee | null>(null);
     const [isDeactivating, setIsDeactivating] = React.useState(false);
@@ -45,18 +45,63 @@ function EmployeesPageContent() {
     const [isDeactivatingDepartment, setIsDeactivatingDepartment] =
         React.useState(false);
 
-    function handleToggleEmployeeStatus(id: string) {
+    React.useEffect(() => {
+        let cancelled = false;
+
+        async function loadEmployees() {
+            try {
+                const { employees: fetched } = await getEmployees({ limit: 100 });
+                if (!cancelled) setEmployees(fetched);
+            } catch {
+                if (!cancelled) toast.error("Couldn't load employees.");
+            } finally {
+                if (!cancelled) setIsLoadingEmployees(false);
+            }
+        }
+
+        loadEmployees();
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    React.useEffect(() => {
+        let cancelled = false;
+
+        async function loadDepartments() {
+            try {
+                const { departments: fetched } = await getDepartments({
+                    limit: 100,
+                });
+                if (!cancelled) setDepartments(fetched);
+            } catch {
+                if (!cancelled) toast.error("Couldn't load departments.");
+            } finally {
+                if (!cancelled) setIsLoadingDepartments(false);
+            }
+        }
+
+        loadDepartments();
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    async function handleToggleEmployeeStatus(id: string) {
         const employee = employees.find((e) => e.id === id);
         if (!employee) return;
 
         if (employee.status === "Inactive") {
             // Reactivating is low-stakes — no confirmation needed
-            setEmployees((prev) =>
-                prev.map((e) =>
-                    e.id === id ? { ...e, status: "Active" } : e,
-                ),
-            );
-            toast.success(`${employee.name} has been reactivated.`);
+            try {
+                const updated = await updateEmployeeStatus(id, "Active");
+                setEmployees((prev) =>
+                    prev.map((e) => (e.id === id ? updated : e)),
+                );
+                toast.success(`${employee.name} has been reactivated.`);
+            } catch {
+                toast.error("Couldn't reactivate employee. Try again.");
+            }
             return;
         }
 
@@ -67,14 +112,12 @@ function EmployeesPageContent() {
         if (!deactivateTarget) return;
         setIsDeactivating(true);
         try {
-            // TODO: replace with a real PATCH /employees/:id/status call
-            await new Promise((resolve) => setTimeout(resolve, 600));
+            const updated = await updateEmployeeStatus(
+                deactivateTarget.id,
+                "Inactive",
+            );
             setEmployees((prev) =>
-                prev.map((e) =>
-                    e.id === deactivateTarget.id
-                        ? { ...e, status: "Inactive" }
-                        : e,
-                ),
+                prev.map((e) => (e.id === deactivateTarget.id ? updated : e)),
             );
             toast.success(`${deactivateTarget.name} has been deactivated.`);
             setDeactivateTarget(null);
@@ -85,17 +128,20 @@ function EmployeesPageContent() {
         }
     }
 
-    function handleToggleDepartmentStatus(id: string) {
+    async function handleToggleDepartmentStatus(id: string) {
         const department = departments.find((d) => d.id === id);
         if (!department) return;
 
         if (department.status === "inactive") {
-            setDepartments((prev) =>
-                prev.map((d) =>
-                    d.id === id ? { ...d, status: "active" } : d,
-                ),
-            );
-            toast.success(`${department.name} has been reactivated.`);
+            try {
+                const updated = await updateDepartmentStatus(id, "active");
+                setDepartments((prev) =>
+                    prev.map((d) => (d.id === id ? updated : d)),
+                );
+                toast.success(`${department.name} has been reactivated.`);
+            } catch {
+                toast.error("Couldn't reactivate department. Try again.");
+            }
             return;
         }
 
@@ -106,13 +152,13 @@ function EmployeesPageContent() {
         if (!departmentDeactivateTarget) return;
         setIsDeactivatingDepartment(true);
         try {
-            // TODO: replace with a real PATCH /departments/:id/status call
-            await new Promise((resolve) => setTimeout(resolve, 600));
+            const updated = await updateDepartmentStatus(
+                departmentDeactivateTarget.id,
+                "inactive",
+            );
             setDepartments((prev) =>
                 prev.map((d) =>
-                    d.id === departmentDeactivateTarget.id
-                        ? { ...d, status: "inactive" }
-                        : d,
+                    d.id === departmentDeactivateTarget.id ? updated : d,
                 ),
             );
             toast.success(
@@ -158,30 +204,46 @@ function EmployeesPageContent() {
                 <Tabs items={tabItems} value={tab} onValueChange={setTab} />
 
                 {tab === "employees" ? (
-                    <>
-                        <EmployeeTable
-                            employees={employees}
-                            onToggleStatus={handleToggleEmployeeStatus}
-                        />
+                    isLoadingEmployees ? (
+                        <p className="px-5 py-10 text-center text-sm text-neutral">
+                            Loading employees...
+                        </p>
+                    ) : (
+                        <>
+                            <EmployeeTable
+                                employees={employees}
+                                onToggleStatus={handleToggleEmployeeStatus}
+                            />
 
-                        <DeleteConfirmModal
-                            open={!!deactivateTarget}
-                            onOpenChange={(open) => {
-                                if (!open) setDeactivateTarget(null);
-                            }}
-                            employeeName={deactivateTarget?.name ?? ""}
-                            onConfirm={handleDeactivateConfirm}
-                            isDeleting={isDeactivating}
-                            description="They'll be marked inactive and hidden from active views, but their attendance, leave, and payroll history are retained."
-                            confirmLabel="Deactivate"
-                            confirmVariant="outline"
-                        />
-                    </>
+                            <DeleteConfirmModal
+                                open={!!deactivateTarget}
+                                onOpenChange={(open) => {
+                                    if (!open) setDeactivateTarget(null);
+                                }}
+                                employeeName={deactivateTarget?.name ?? ""}
+                                onConfirm={handleDeactivateConfirm}
+                                isDeleting={isDeactivating}
+                                description="They'll be marked inactive and hidden from active views, but their attendance, leave, and payroll history are retained."
+                                confirmLabel="Deactivate"
+                                confirmVariant="outline"
+                            />
+                        </>
+                    )
                 ) : tab === "org-chart" ? (
-                    <EmployeeOrgChart
-                        employees={employees}
-                        onNodeClick={(id) => router.push(`/employees/${id}`)}
-                    />
+                    isLoadingEmployees ? (
+                        <p className="px-5 py-10 text-center text-sm text-neutral">
+                            Loading org chart...
+                        </p>
+                    ) : (
+                        <EmployeeOrgChart
+                            employees={employees}
+                            onNodeClick={(id) => router.push(`/employees/${id}`)}
+                        />
+                    )
+                ) : isLoadingDepartments ? (
+                    <p className="px-5 py-10 text-center text-sm text-neutral">
+                        Loading departments...
+                    </p>
                 ) : (
                     <>
                         <DepartmentsTab

@@ -10,7 +10,7 @@ import {
     type EmployeeFormSubmitValues,
 } from "@/components/employee/EmployeeForm";
 import { getDepartments } from "@/lib/api/departments";
-import { updateEmployee } from "@/lib/api/employees";
+import { getEmployees, updateEmployee } from "@/lib/api/employees";
 import { toast } from "@/components/ui/Toast";
 import type { Department } from "@/types/department";
 import type { Employee } from "@/types/employee";
@@ -22,25 +22,31 @@ interface EditEmployeeClientProps {
 export function EditEmployeeClient({ employee }: EditEmployeeClientProps) {
     const router = useRouter();
     const [departments, setDepartments] = React.useState<Department[]>([]);
-    const [isLoadingDepartments, setIsLoadingDepartments] = React.useState(true);
+    const [employees, setEmployees] = React.useState<Employee[]>([]);
+    const [isLoadingForm, setIsLoadingForm] = React.useState(true);
 
     React.useEffect(() => {
         let cancelled = false;
 
-        async function loadDepartments() {
+        async function loadFormData() {
             try {
-                const { departments: fetched } = await getDepartments({
-                    limit: 100,
-                });
-                if (!cancelled) setDepartments(fetched);
+                const [{ departments: fetchedDepartments }, { employees: fetchedEmployees }] =
+                    await Promise.all([
+                        getDepartments({ limit: 100 }),
+                        getEmployees({ limit: 1000 }),
+                    ]);
+                if (!cancelled) {
+                    setDepartments(fetchedDepartments);
+                    setEmployees(fetchedEmployees);
+                }
             } catch {
-                if (!cancelled) toast.error("Couldn't load departments.");
+                if (!cancelled) toast.error("Couldn't load form data.");
             } finally {
-                if (!cancelled) setIsLoadingDepartments(false);
+                if (!cancelled) setIsLoadingForm(false);
             }
         }
 
-        loadDepartments();
+        loadFormData();
         return () => {
             cancelled = true;
         };
@@ -61,13 +67,14 @@ export function EditEmployeeClient({ employee }: EditEmployeeClientProps) {
                 />
                 <Card>
                     <CardContent className="p-6">
-                        {isLoadingDepartments ? (
+                        {isLoadingForm ? (
                             <p className="text-sm text-neutral">
                                 Loading form...
                             </p>
                         ) : (
                             <EmployeeForm
                                 departments={departments}
+                                employees={employees}
                                 initialValues={employee}
                                 onSubmit={handleSubmit}
                                 submitLabel="Save Changes"

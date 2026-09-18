@@ -2,7 +2,9 @@
 
 [![Review Assignment Due Date](https://classroom.github.com/assets/deadline-readme-button-22041afd0340ce965d47ae6ef1cefeee28c7c493a6346c4f15d667ab976d596c.svg)](https://classroom.github.com/a/wEWvHaXF)
 
-**Live demo:** [www.koru-hrm.site](https://www.koru-hrm.site)
+**Live:** [www.koru-hrm.site](https://www.koru-hrm.site)
+
+**Backend API:** [koru-backend](https://github.com/sconos/crack-be-satria) — see that repo for API docs and environment setup.
 
 Koru HRM is a modern human resource management frontend built with Next.js. It provides a complete people operations experience for managing employees, attendance, leave, documents, payroll, reports, and system settings from a single dashboard.
 
@@ -62,13 +64,13 @@ src/
 │   ├── settings/
 │   └── ui/
 ├── lib/
-│   ├── api/            # API client / request helpers
+│   ├── api/             # API client / request helpers
 │   ├── mock-data/       # local fixtures used when backend is unavailable
 │   ├── session.ts
 │   ├── util.ts
 │   └── validation.ts
 ├── types/
-├── proxy.ts             # dev-time API proxy config
+├── proxy.ts              # dev-time API proxy config
 └── app/page.tsx
 ```
 

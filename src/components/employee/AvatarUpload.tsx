@@ -25,11 +25,12 @@ export function AvatarUpload({
     const [preview, setPreview] = React.useState<string | null>(value ?? null);
     const [error, setError] = React.useState<string | null>(null);
     const [isUploading, setIsUploading] = React.useState(false);
-
-    React.useEffect(() => {
+    const [lastSyncedValue, setLastSyncedValue] = React.useState(value ?? null);
+    
+    if ((value ?? null) !== lastSyncedValue) {
+        setLastSyncedValue(value ?? null);
         setPreview(value ?? null);
-    }, [value]);
-
+    }
     async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
         const file = e.target.files?.[0];
         if (!file) return;

@@ -15,6 +15,7 @@ import {
     TableEmpty,
 } from "@/components/ui/Table";
 import { Button } from "@/components/ui/Button";
+import { RejectReasonModal } from "@/components/ui/RejectReasonModal";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Badge } from "@/components/ui/Badge";
@@ -92,11 +93,12 @@ export default function AttendancePage() {
         React.useState(true);
     const [correctionsLoaded, setCorrectionsLoaded] = React.useState(false);
     const [reviewingId, setReviewingId] = React.useState<string | null>(null);
+    const [rejectTargetId, setRejectTargetId] = React.useState<string | null>(
+        null,
+    );
 
     const today = todayDateString();
 
-    // Status and date are filtered server-side. Department and search are
-    // filtered client-side below: QueryAttendanceDto supports neither.
     React.useEffect(() => {
         let cancelled = false;
 
@@ -123,8 +125,6 @@ export default function AttendancePage() {
         };
     }, [today, statusFilter]);
 
-    // Lazy-loaded on first switch to the Approvals tab rather than on
-    // mount, since most visits to this page are for the daily log.
     React.useEffect(() => {
         if (tab !== "approvals" || correctionsLoaded) return;
         let cancelled = false;
@@ -191,21 +191,25 @@ export default function AttendancePage() {
         }
     }
 
-    async function handleRejectCorrection(id: string) {
-        const reason = window.prompt("Reason for rejecting this correction?");
-        if (!reason || !reason.trim()) return;
+    function handleRejectCorrection(id: string) {
+        setRejectTargetId(id);
+    }
 
+    async function handleConfirmRejectCorrection(reason: string) {
+        if (!rejectTargetId) return;
+        const id = rejectTargetId;
         setReviewingId(id);
         try {
             const updated = await reviewCorrectionRequest(
                 id,
                 "rejected",
-                reason.trim(),
+                reason,
             );
             setCorrections((prev) =>
                 prev.map((c) => (c.id === id ? updated : c)),
             );
             toast.error("Correction rejected.");
+            setRejectTargetId(null);
         } catch (err) {
             toast.error(
                 err instanceof ApiError
@@ -229,7 +233,6 @@ export default function AttendancePage() {
         });
     }, [records, search, department]);
 
-    // Counts reflect everything loaded for today, not the filtered view.
     const stats = React.useMemo(() => {
         const present = records.filter((r) => r.status === "on-time").length;
         const late = records.filter((r) => r.status === "late").length;
@@ -247,9 +250,7 @@ export default function AttendancePage() {
                     action={<Button variant="outline">Export CSV</Button>}
                 />
 
-                {/* Stats — note these only count records that exist for today.
-                    Employees with no record at all aren't counted as absent;
-                    that needs a backend rollup endpoint to do properly. */}
+                {/* Stats */}
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                     <StatCard
                         label="Present today"
@@ -415,14 +416,7 @@ export default function AttendancePage() {
                     </div>
                 )}
 
-                {/* Approvals
-                    TODO: no backend yet. There's no correction-request model
-                    in the Prisma schema and no endpoints, so this needs a new
-                    NestJS module (model + controller/service/repository +
-                    approve/reject routes) before it can be wired up. The old
-                    mock list and approve/reject handlers were removed rather
-                    than left in place looking functional. */}
-                {/* Approvals — now backed by the attendance-corrections module */}
+                {/* Approvals */}
                 {tab === "approvals" && (
                     <Table>
                         <TableHeader>
@@ -540,6 +534,16 @@ export default function AttendancePage() {
                     </Table>
                 )}
             </div>
+
+            <RejectReasonModal
+                open={!!rejectTargetId}
+                onOpenChange={(open) => {
+                    if (!open) setRejectTargetId(null);
+                }}
+                title="Reject correction request"
+                onSubmit={handleConfirmRejectCorrection}
+                isSubmitting={!!reviewingId}
+            />
         </DashboardLayout>
     );
 }

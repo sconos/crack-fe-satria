@@ -15,8 +15,6 @@ export interface CorrectionRequestInput {
     reason: string;
 }
 
-// Built as a self-contained portal, same pattern as DeleteConfirmModal —
-// there's no confirmed shared Modal API to rely on.
 export function RequestCorrectionModal({
     open,
     onOpenChange,

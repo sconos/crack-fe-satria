@@ -1,8 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { Camera, X } from "lucide-react";
+import { Camera, X, Loader2 } from "lucide-react";
 import { cn } from "@/lib/util";
+import { uploadMyAvatar, removeMyAvatar } from "@/lib/api/employees";
+import { ApiError } from "@/lib/api/client";
 
 function getInitials(name: string) {
     const parts = name.trim().split(/\s+/);
@@ -17,13 +19,18 @@ export function AvatarUpload({
 }: {
     name: string;
     value?: string | null;
-    onChange: (dataUrl: string | null) => void;
+    onChange: (avatarUrl: string | null) => void;
 }) {
     const inputRef = React.useRef<HTMLInputElement>(null);
     const [preview, setPreview] = React.useState<string | null>(value ?? null);
     const [error, setError] = React.useState<string | null>(null);
+    const [isUploading, setIsUploading] = React.useState(false);
 
-    function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    React.useEffect(() => {
+        setPreview(value ?? null);
+    }, [value]);
+
+    async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
         const file = e.target.files?.[0];
         if (!file) return;
 
@@ -37,15 +44,40 @@ export function AvatarUpload({
         }
 
         setError(null);
-        const url = URL.createObjectURL(file);
-        setPreview(url);
-        onChange(url);
+        setIsUploading(true);
+        try {
+            const updated = await uploadMyAvatar(file);
+            setPreview(updated.avatar ?? null);
+            onChange(updated.avatar ?? null);
+        } catch (err) {
+            setError(
+                err instanceof ApiError
+                    ? err.message
+                    : "Couldn't upload that image. Try again.",
+            );
+        } finally {
+            setIsUploading(false);
+            if (inputRef.current) inputRef.current.value = "";
+        }
     }
 
-    function handleRemove() {
-        setPreview(null);
-        onChange(null);
-        if (inputRef.current) inputRef.current.value = "";
+    async function handleRemove() {
+        setError(null);
+        setIsUploading(true);
+        try {
+            const updated = await removeMyAvatar();
+            setPreview(updated.avatar ?? null);
+            onChange(updated.avatar ?? null);
+        } catch (err) {
+            setError(
+                err instanceof ApiError
+                    ? err.message
+                    : "Couldn't remove that image. Try again.",
+            );
+        } finally {
+            setIsUploading(false);
+            if (inputRef.current) inputRef.current.value = "";
+        }
     }
 
     return (
@@ -64,10 +96,17 @@ export function AvatarUpload({
                     </div>
                 )}
 
+                {isUploading && (
+                    <div className="absolute inset-0 flex items-center justify-center rounded-full bg-primary-dark/40">
+                        <Loader2 className="h-5 w-5 animate-spin text-base-white" />
+                    </div>
+                )}
+
                 <button
                     type="button"
                     onClick={() => inputRef.current?.click()}
-                    className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-base-white shadow-sm transition-colors hover:bg-primary-dark"
+                    disabled={isUploading}
+                    className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-base-white shadow-sm transition-colors hover:bg-primary-dark disabled:opacity-50"
                     aria-label="Change photo"
                 >
                     <Camera className="h-3.5 w-3.5" />
@@ -77,7 +116,8 @@ export function AvatarUpload({
                     <button
                         type="button"
                         onClick={handleRemove}
-                        className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-danger text-base-white shadow-sm transition-colors hover:bg-danger/90"
+                        disabled={isUploading}
+                        className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-danger text-base-white shadow-sm transition-colors hover:bg-danger/90 disabled:opacity-50"
                         aria-label="Remove photo"
                     >
                         <X className="h-3 w-3" />
@@ -91,6 +131,7 @@ export function AvatarUpload({
                 accept="image/*"
                 className="hidden"
                 onChange={handleFileChange}
+                disabled={isUploading}
             />
 
             {error && (

@@ -59,7 +59,6 @@ export function ProfileDocumentsTab({ employeeId }: { employeeId: string }) {
     }
 
     async function handleReject(id: string) {
-        // ReviewDocumentDto requires a rejectionReason when rejecting.
         const reason = window.prompt("Reason for rejecting this document?");
         if (!reason || !reason.trim()) return;
 

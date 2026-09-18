@@ -14,6 +14,7 @@ import {
     TableEmpty,
 } from "@/components/ui/Table";
 import { AttendanceStatusBadge } from "@/components/attendance/AttendanceStatusBadge";
+import { Badge } from "@/components/ui/Badge";
 import {
     RequestCorrectionModal,
     type CorrectionRequestInput,
@@ -27,7 +28,11 @@ import {
     getMyAttendance,
     type AttendanceRecordWithEmployee,
 } from "@/lib/api/attendance";
-import { createCorrectionRequest } from "@/lib/api/attendance-corrections";
+import {
+    createCorrectionRequest,
+    getMyCorrectionRequests,
+} from "@/lib/api/attendance-corrections";
+import type { AttendanceCorrectionRequest } from "@/types/attendance-correction";
 import { todayDateString } from "@/lib/api/mappers/attendance-mappers";
 import { ApiError } from "@/lib/api/client";
 
@@ -51,9 +56,10 @@ export default function PortalAttendancePage() {
         React.useState<AttendanceRecordWithEmployee | null>(null);
     const [isSubmittingCorrection, setIsSubmittingCorrection] =
         React.useState(false);
+    const [corrections, setCorrections] = React.useState<
+        AttendanceCorrectionRequest[]
+    >([]);
 
-    // The backend scopes /attendance/me to the JWT's employee, so there's
-    // no employee id to pass or hardcode here.
     React.useEffect(() => {
         let cancelled = false;
 
@@ -73,6 +79,36 @@ export default function PortalAttendancePage() {
             cancelled = true;
         };
     }, []);
+
+    React.useEffect(() => {
+        let cancelled = false;
+
+        async function loadCorrections() {
+            try {
+                const { requests } = await getMyCorrectionRequests();
+                if (!cancelled) setCorrections(requests);
+            } catch {
+                // Non-fatal — the page still works, just without the
+                // per-row correction status indicator.
+            }
+        }
+
+        loadCorrections();
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    const correctionByAttendanceId = React.useMemo(() => {
+        const map = new Map<string, AttendanceCorrectionRequest>();
+        for (const c of corrections) {
+            const existing = map.get(c.attendanceId);
+            if (!existing || c.createdAt >= existing.createdAt) {
+                map.set(c.attendanceId, c);
+            }
+        }
+        return map;
+    }, [corrections]);
 
     const today = todayDateString();
     const todayRecord = history.find((r) => r.date === today);
@@ -94,8 +130,6 @@ export default function PortalAttendancePage() {
             upsertRecord(updated);
             toast.success(`Clocked in at ${updated.clockIn}`);
         } catch (err) {
-            // 409 means already clocked in — surface the backend's message
-            // rather than a generic one.
             toast.error(
                 err instanceof ApiError
                     ? err.message
@@ -127,13 +161,14 @@ export default function PortalAttendancePage() {
         if (!correctionTarget) return;
         setIsSubmittingCorrection(true);
         try {
-            await createCorrectionRequest({
+            const created = await createCorrectionRequest({
                 attendanceId: correctionTarget.id,
                 date: correctionTarget.date,
                 requestedClockIn: data.requestedClockIn,
                 requestedClockOut: data.requestedClockOut,
                 reason: data.reason,
             });
+            setCorrections((prev) => [created, ...prev]);
             toast.success("Correction request submitted — pending HR review.");
             setCorrectionTarget(null);
         } catch (err) {
@@ -237,17 +272,50 @@ export default function PortalAttendancePage() {
                                                 />
                                             </TableCell>
                                             <TableCell className="text-right">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() =>
-                                                        setCorrectionTarget(
-                                                            record,
-                                                        )
+                                                {(() => {
+                                                    const correction =
+                                                        correctionByAttendanceId.get(
+                                                            record.id,
+                                                        );
+                                                    if (
+                                                        correction?.status ===
+                                                        "pending"
+                                                    ) {
+                                                        return (
+                                                            <Badge
+                                                                variant="warning"
+                                                                dot
+                                                            >
+                                                                Correction
+                                                                pending
+                                                            </Badge>
+                                                        );
                                                     }
-                                                >
-                                                    Request correction
-                                                </Button>
+                                                    return (
+                                                        <div className="flex flex-col items-end gap-1">
+                                                            {correction?.status ===
+                                                                "rejected" && (
+                                                                <span className="text-xs text-danger">
+                                                                    Last
+                                                                    request
+                                                                    rejected
+                                                                </span>
+                                                            )}
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                onClick={() =>
+                                                                    setCorrectionTarget(
+                                                                        record,
+                                                                    )
+                                                                }
+                                                            >
+                                                                Request
+                                                                correction
+                                                            </Button>
+                                                        </div>
+                                                    );
+                                                })()}
                                             </TableCell>
                                         </TableRow>
                                     ))

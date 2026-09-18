@@ -1,5 +1,5 @@
 // src/lib/api/auth.ts
-import { api, setAccessToken, setSessionHint } from './client';
+import { api, setAccessToken, setSessionHint, setRoleHint } from './client';
 
 export interface AuthUser {
   id: string;
@@ -16,6 +16,7 @@ export async function login(email: string, password: string) {
   const data = await api.post<AuthResponse>('/auth/login', { email, password }, { skipAuth: true });
   setAccessToken(data.accessToken);
   setSessionHint(true);
+  setRoleHint(data.user.role);
   return data.user;
 }
 
@@ -35,4 +36,5 @@ export async function logout() {
   await api.post('/auth/logout');
   setAccessToken(null);
   setSessionHint(false);
+  setRoleHint(null);
 }

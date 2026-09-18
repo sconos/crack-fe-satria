@@ -51,7 +51,7 @@ export function ResetPasswordForm() {
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
-        if (!token) return; // shouldn't happen — the missing-token screen renders instead
+        if (!token) return;
         if (!validate()) return;
 
         setIsSubmitting(true);

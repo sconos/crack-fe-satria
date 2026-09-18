@@ -5,7 +5,10 @@ import { Search, Mail, Phone } from "lucide-react";
 import { PortalLayout } from "@/components/portal/PortalLayout";
 import { Input } from "@/components/ui/Input";
 import { Card, CardContent } from "@/components/ui/Card";
-import { employees } from "@/lib/mock-data/employees";
+import { Avatar } from "@/components/ui/Avatar";
+import { toast } from "@/components/ui/Toast";
+import { getEmployeeDirectory } from "@/lib/api/employees";
+import type { Employee } from "@/types/employee";
 
 function getInitials(name: string) {
     const parts = name.trim().split(/\s+/);
@@ -14,7 +17,22 @@ function getInitials(name: string) {
 }
 
 export default function PortalDirectoryPage() {
+    const [employees, setEmployees] = React.useState<Employee[]>([]);
+    const [isLoading, setIsLoading] = React.useState(true);
     const [query, setQuery] = React.useState("");
+
+    React.useEffect(() => {
+        (async () => {
+            try {
+                const fetched = await getEmployeeDirectory();
+                setEmployees(fetched);
+            } catch {
+                toast.error("Couldn't load the directory.");
+            } finally {
+                setIsLoading(false);
+            }
+        })();
+    }, []);
 
     const filtered = React.useMemo(() => {
         if (!query.trim()) return employees;
@@ -25,7 +43,7 @@ export default function PortalDirectoryPage() {
                 e.department.toLowerCase().includes(q) ||
                 e.role.toLowerCase().includes(q),
         );
-    }, [query]);
+    }, [employees, query]);
 
     return (
         <PortalLayout title="Company Directory">
@@ -38,9 +56,15 @@ export default function PortalDirectoryPage() {
                     className="w-full sm:w-80"
                 />
 
-                {filtered.length === 0 ? (
+                {isLoading ? (
                     <p className="py-10 text-center text-sm text-neutral">
-                        No one matches &ldquo;{query}&rdquo;.
+                        Loading directory...
+                    </p>
+                ) : filtered.length === 0 ? (
+                    <p className="py-10 text-center text-sm text-neutral">
+                        {employees.length === 0
+                            ? "No one to show yet."
+                            : `No one matches "${query}".`}
                     </p>
                 ) : (
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -48,9 +72,11 @@ export default function PortalDirectoryPage() {
                             <Card key={employee.id}>
                                 <CardContent className="flex flex-col gap-3">
                                     <div className="flex items-center gap-3">
-                                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-tint font-heading text-sm font-semibold text-primary-dark">
-                                            {getInitials(employee.name)}
-                                        </div>
+                                        <Avatar
+                                            initials={getInitials(employee.name)}
+                                            src={employee.avatar}
+                                            size="md"
+                                        />
                                         <div className="min-w-0">
                                             <p className="truncate font-body text-sm font-medium text-primary-dark">
                                                 {employee.name}
@@ -65,8 +91,9 @@ export default function PortalDirectoryPage() {
                                         <span className="font-body text-xs text-neutral">
                                             {employee.department}
                                         </span>
-                                        
-                                        <a    href={`mailto:${employee.email}`}
+
+                                        <a
+                                            href={`mailto:${employee.email}`}
                                             className="flex items-center gap-1.5 font-body text-xs text-secondary hover:underline"
                                         >
                                             <Mail className="h-3 w-3" />

@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -21,6 +22,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { useRouter } from "next/navigation";
 import { logout } from "@/lib/api/auth";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { getMyEmployee } from "@/lib/api/employees";
 
 const navItems = [
     { label: "Dashboard", href: "/portal", icon: LayoutDashboard },
@@ -49,6 +51,24 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
     const { user } = useAuth(); 
     const router = useRouter();
     const { setUser } = useAuth();
+    const [displayName, setDisplayName] = React.useState<string | null>(null);
+
+    React.useEffect(() => {
+        if (!user) return;
+        let cancelled = false;
+
+        getMyEmployee()
+            .then((employee) => {
+                if (!cancelled) setDisplayName(employee.name);
+            })
+            .catch(() => {
+                // Falls back
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [user]);
 
     async function handleSignOut() {
         await logout();
@@ -87,12 +107,12 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
             <div className="mx-3 mt-3 rounded-lg bg-primary-tint px-3 py-3">
                 <div className="flex items-center gap-2">
                     <Avatar
-                        initials={getInitials(user.email)}
+                        initials={getInitials(displayName ?? user.email)}
                         size="sm"
                     />
                     <div className="min-w-0">
                         <p className="truncate font-heading text-xs font-bold text-primary-dark">
-                            {user.email}
+                            {displayName ?? user.email}
                         </p>
                         <p className="truncate font-body text-xs text-neutral">
                             {user.role}

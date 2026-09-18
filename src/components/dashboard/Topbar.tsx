@@ -1,8 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { Bell } from "lucide-react";
 import { useAuth } from "../auth/AuthProvider";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 
 interface TopbarProps {
     title?: string;
@@ -16,12 +16,7 @@ function Topbar({ title }: TopbarProps) {
                 {title}
             </p>
             <div className="flex items-center gap-3">
-                <button
-                    type="button"
-                    className="relative rounded-lg p-1.5 text-neutral transition-colors hover:bg-primary-tint hover:text-primary-dark"
-                >
-                    <Bell className="h-5 w-5" />
-                </button>
+                <NotificationBell />
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary font-heading text-xs font-semibold text-base-white">
                     {user?.email[0].toUpperCase()}
                 </div>

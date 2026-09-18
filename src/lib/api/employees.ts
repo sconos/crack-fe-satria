@@ -1,5 +1,5 @@
 // src/lib/api/employees.ts
-import { api } from "./client";
+import { api, API_BASE_URL } from "./client";
 import {
     generateTempPassword,
     toApiEmploymentStatus,
@@ -11,8 +11,6 @@ import {
 } from "./mappers/employee-mappers";
 import type { Employee } from "@/types/employee";
 
-// --- Raw shapes coming back from the NestJS API ----------------------------
-
 interface ApiEmployee {
     id: string;
     employeeCode: string;
@@ -20,21 +18,26 @@ interface ApiEmployee {
     lastName: string;
     phone: string | null;
     address: string | null;
-    dateOfBirth: string | null; // ISO datetime string
+    dateOfBirth: string | null;
     nationalId: string | null;
-    position: string;
+    jobTitleId: string;
+    jobTitle: { id: string; name: string } | null;
     departmentId: string | null;
     managerId: string | null;
     workLocation: string | null;
     employmentType: "FULL_TIME" | "PART_TIME" | "CONTRACT";
     employmentStatus: "ACTIVE" | "INACTIVE" | "ON_LEAVE" | "PROBATION";
-    hireDate: string | null; // ISO datetime string
+    hireDate: string | null;
     avatar: string | null;
-    emergencyContactName: string | null;
-    emergencyContactPhone: string | null;
+    baseSalary: string;
     user: { email: string; role: string; isActive: boolean };
     department: { id: string; name: string } | null;
     manager: { id: string; firstName: string; lastName: string } | null;
+}
+
+interface ApiEmployeeSelf extends ApiEmployee {
+    emergencyContactName: string | null;
+    emergencyContactPhone: string | null;
 }
 
 interface ApiPaginatedEmployees {
@@ -42,12 +45,13 @@ interface ApiPaginatedEmployees {
     meta: { total: number; page: number; limit: number; totalPages: number };
 }
 
-// --- Mapping --------------------------------------------------------------
-
-// Prisma dates come back as full ISO datetime strings; <input type="date">
-// wants just the YYYY-MM-DD part.
 function toDateInputValue(iso: string | null): string | undefined {
     return iso ? iso.slice(0, 10) : undefined;
+}
+
+function toAvatarUrl(filename: string | null): string | null | undefined {
+    if (!filename) return filename;
+    return `${API_BASE_URL}/uploads/avatars/${filename}`;
 }
 
 function mapEmployee(raw: ApiEmployee): Employee {
@@ -62,7 +66,8 @@ function mapEmployee(raw: ApiEmployee): Employee {
         address: raw.address ?? undefined,
         department: raw.department?.name ?? "",
         departmentId: raw.departmentId,
-        role: raw.position,
+        role: raw.jobTitle?.name ?? "",
+        jobTitleId: raw.jobTitleId,
         employmentType: toFrontendEmploymentType(raw.employmentType),
         manager: raw.manager
             ? `${raw.manager.firstName} ${raw.manager.lastName}`.trim()
@@ -71,23 +76,27 @@ function mapEmployee(raw: ApiEmployee): Employee {
         workLocation: raw.workLocation ?? undefined,
         status: toFrontendEmploymentStatus(raw.employmentStatus),
         joinDate: toDateInputValue(raw.hireDate) ?? "",
-        avatar: raw.avatar,
-        // The repository uses `include` rather than `select` for these
-        // relations, and Prisma returns all scalar columns by default when
-        // you use `include` — so these ARE present on every read endpoint
-        // (list, detail, and /me), not just the self-update response.
-        emergencyContactName: raw.emergencyContactName ?? undefined,
-        emergencyContactPhone: raw.emergencyContactPhone ?? undefined,
+        avatar: toAvatarUrl(raw.avatar),
+        baseSalary: raw.baseSalary !== undefined ? Number(raw.baseSalary) : undefined,
+        emergencyContactName: undefined,
+        emergencyContactPhone: undefined,
     };
 }
 
-// --- Public API -------------------------------------------------------------
+function mapEmployeeSelf(raw: ApiEmployeeSelf): Employee {
+    return {
+        ...mapEmployee(raw),
+        emergencyContactName: raw.emergencyContactName ?? undefined,
+        emergencyContactPhone: raw.emergencyContactPhone ?? undefined,
+        baseSalary: undefined,
+    };
+}
 
 export interface EmployeeQuery {
     page?: number;
     limit?: number;
     search?: string;
-    department?: string; // departmentId, per QueryEmployeeDto
+    department?: string;
     employmentStatus?: FrontendEmployeeStatus;
 }
 
@@ -121,10 +130,73 @@ export async function getEmployee(id: string): Promise<Employee> {
     return mapEmployee(raw);
 }
 
+export async function getMyEmployee(): Promise<Employee> {
+    const raw = await api.get<ApiEmployeeSelf>("/employees/me");
+    return mapEmployeeSelf(raw);
+}
+
+export interface UpdateMyProfilePayload {
+    phone?: string;
+    address?: string;
+    emergencyContactName?: string;
+    emergencyContactPhone?: string;
+}
+
+export async function updateMyEmployee(
+    payload: UpdateMyProfilePayload,
+): Promise<Employee> {
+    const raw = await api.patch<ApiEmployeeSelf>("/employees/me", payload);
+    return mapEmployeeSelf(raw);
+}
+
+export async function uploadMyAvatar(file: File): Promise<Employee> {
+    const formData = new FormData();
+    formData.append("avatar", file);
+    const raw = await api.post<ApiEmployeeSelf>("/employees/me/avatar", formData);
+    return mapEmployeeSelf(raw);
+}
+
+export async function removeMyAvatar(): Promise<Employee> {
+    const raw = await api.delete<ApiEmployeeSelf>("/employees/me/avatar");
+    return mapEmployeeSelf(raw);
+}
+
 export function getEmployeeOrgChart() {
     return api.get<
         { id: string; firstName: string; lastName: string; managerId: string | null }[]
     >("/employees/org-chart");
+}
+
+interface ApiDirectoryEmployee {
+    id: string;
+    firstName: string;
+    lastName: string;
+    jobTitle: { name: string } | null;
+    avatar: string | null;
+    phone: string | null;
+    managerId: string | null;
+    department: { name: string } | null;
+    user: { email: string };
+}
+
+function mapDirectoryEmployee(raw: ApiDirectoryEmployee): Employee {
+    return {
+        id: raw.id,
+        name: `${raw.firstName} ${raw.lastName}`.trim(),
+        email: raw.user.email,
+        phone: raw.phone ?? undefined,
+        department: raw.department?.name ?? "",
+        role: raw.jobTitle?.name ?? "",
+        avatar: toAvatarUrl(raw.avatar),
+        managerId: raw.managerId,
+        status: "Active",
+        joinDate: "",
+    };
+}
+
+export async function getEmployeeDirectory(): Promise<Employee[]> {
+    const raw = await api.get<ApiDirectoryEmployee[]>("/employees/directory");
+    return raw.map(mapDirectoryEmployee);
 }
 
 function splitName(fullName: string): { firstName: string; lastName: string } {
@@ -137,9 +209,6 @@ function splitName(fullName: string): { firstName: string; lastName: string } {
     };
 }
 
-// Fields the Add/Edit form can actually produce and that the backend
-// accepts on create/update. Notably absent: status (separate route),
-// avatar and emergency contact (self-service only — see mapEmployee).
 export interface EmployeeFormPayload {
     name: string;
     email: string;
@@ -148,11 +217,12 @@ export interface EmployeeFormPayload {
     nationalId?: string;
     address?: string;
     departmentId?: string | null;
-    role: string; // job title -> backend `position`
+    jobTitleId: string;
     employmentType?: FrontendEmploymentType;
     managerId?: string | null;
     workLocation?: string;
     joinDate?: string;
+    baseSalary?: number;
 }
 
 export async function createEmployee(
@@ -170,7 +240,7 @@ export async function createEmployee(
         address: payload.address || undefined,
         dateOfBirth: payload.dateOfBirth || undefined,
         nationalId: payload.nationalId || undefined,
-        position: payload.role,
+        jobTitleId: payload.jobTitleId,
         departmentId: payload.departmentId || undefined,
         managerId: payload.managerId || undefined,
         workLocation: payload.workLocation || undefined,
@@ -178,6 +248,7 @@ export async function createEmployee(
             ? toApiEmploymentType(payload.employmentType)
             : undefined,
         hireDate: payload.joinDate || undefined,
+        baseSalary: payload.baseSalary,
     });
 
     return { employee: mapEmployee(raw), tempPassword };
@@ -194,11 +265,12 @@ export async function updateEmployee(
     const raw = await api.patch<ApiEmployee>(`/employees/${id}`, {
         firstName,
         lastName,
+        email: payload.email || undefined,
         phone: payload.phone || undefined,
         address: payload.address || undefined,
         dateOfBirth: payload.dateOfBirth || undefined,
         nationalId: payload.nationalId || undefined,
-        position: payload.role,
+        jobTitleId: payload.jobTitleId,
         departmentId: payload.departmentId || undefined,
         managerId: payload.managerId || undefined,
         workLocation: payload.workLocation || undefined,
@@ -206,6 +278,7 @@ export async function updateEmployee(
             ? toApiEmploymentType(payload.employmentType)
             : undefined,
         hireDate: payload.joinDate || undefined,
+        baseSalary: payload.baseSalary,
     });
 
     return mapEmployee(raw);
@@ -218,34 +291,5 @@ export async function updateEmployeeStatus(
     const raw = await api.patch<ApiEmployee>(`/employees/${id}/status`, {
         status: toApiEmploymentStatus(status),
     });
-    return mapEmployee(raw);
-}
-
-// --- Self-service (portal) --------------------------------------------------
-// GET/PATCH /employees/me — the backend derives the employee from the JWT,
-// no id needed. This is the only place avatar and emergency contact can
-// actually be saved; the admin create/update endpoints don't accept them.
-
-export async function getMyEmployee(): Promise<Employee> {
-    const raw = await api.get<ApiEmployee>("/employees/me");
-    return mapEmployee(raw);
-}
-
-export interface UpdateMyEmployeePayload {
-    phone?: string;
-    address?: string;
-    emergencyContactName?: string;
-    emergencyContactPhone?: string;
-    // string | null — null explicitly clears the avatar. UpdateEmployeeSelfDto's
-    // @IsOptional() skips validation for both null and undefined, and Prisma
-    // accepts null to clear a nullable column, so this reaches the backend
-    // as-is rather than being coerced to undefined.
-    avatar?: string | null;
-}
-
-export async function updateMyEmployee(
-    payload: UpdateMyEmployeePayload,
-): Promise<Employee> {
-    const raw = await api.patch<ApiEmployee>("/employees/me", payload);
     return mapEmployee(raw);
 }

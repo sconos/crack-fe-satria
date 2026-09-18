@@ -14,6 +14,8 @@ interface ChartDatum extends Employee {
     parentId: string | null;
 }
 
+const VIRTUAL_ROOT_ID = "__virtual_root__";
+
 function escapeHtml(value: string) {
     return value
         .replace(/&/g, "&amp;")
@@ -30,10 +32,23 @@ function getInitials(name: string) {
 function toChartData(employees: Employee[]): ChartDatum[] {
     const idByName = new Map(employees.map((e) => [e.name, e.id]));
 
-    return employees.map((e) => ({
+    const virtualRoot: ChartDatum = {
+        id: VIRTUAL_ROOT_ID,
+        name: "",
+        email: "",
+        department: "",
+        role: "",
+        status: "Active",
+        joinDate: "",
+        parentId: null,
+    };
+
+    const nodes: ChartDatum[] = employees.map((e) => ({
         ...e,
-        parentId: e.manager ? (idByName.get(e.manager) ?? null) : null,
+        parentId: e.manager ? (idByName.get(e.manager) ?? VIRTUAL_ROOT_ID) : VIRTUAL_ROOT_ID,
     }));
+
+    return [virtualRoot, ...nodes];
 }
 
 export function EmployeeOrgChart({
@@ -58,18 +73,21 @@ export function EmployeeOrgChart({
         chartRef.current
             .container(`#${containerId}`)
             .data(toChartData(employees))
-            .nodeWidth(() => 220)
-            .nodeHeight(() => 100)
+            .nodeWidth((d) => (d.data.id === VIRTUAL_ROOT_ID ? 0 : 220))
+            .nodeHeight((d) => (d.data.id === VIRTUAL_ROOT_ID ? 0 : 100))
             .childrenMargin(() => 50)
             .compactMarginBetween(() => 25)
             .compactMarginPair(() => 40)
             .neighbourMargin(() => 25)
             .onNodeClick((datum) => {
+                if (datum.data.id === VIRTUAL_ROOT_ID) return;
                 onNodeClick?.(datum.data.id);
             })
             .nodeContent((d) => {
                 const node = d as LayoutNode;
                 const emp = node.data;
+                if (emp.id === VIRTUAL_ROOT_ID) return "";
+
                 const initials = getInitials(emp.name);
                 const avatarHtml = emp.avatar
                     ? `<img src="${escapeHtml(emp.avatar)}" alt="${escapeHtml(emp.name)}" style="width:32px;height:32px;border-radius:9999px;object-fit:cover;flex-shrink:0;" />`

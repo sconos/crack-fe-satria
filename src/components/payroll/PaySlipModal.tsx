@@ -4,7 +4,6 @@ import * as React from "react";
 import { X, Printer, Download } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { PayrollStatusBadge } from "./PayrollStatusBadge";
-import { downloadPayslip } from "@/lib/api/payroll";
 import { toast } from "@/components/ui/Toast";
 import type { PayrollRecord } from "@/types/payroll";
 import Image from "next/image";
@@ -38,6 +37,7 @@ function getInitials(name: string) {
 
 function PaySlipModal({ open, onOpenChange, record }: PaySlipModalProps) {
     const [isDownloading, setIsDownloading] = React.useState(false);
+    const contentRef = React.useRef<HTMLDivElement>(null);
 
     React.useEffect(() => {
         if (open) document.body.style.overflow = "hidden";
@@ -60,11 +60,40 @@ function PaySlipModal({ open, onOpenChange, record }: PaySlipModalProps) {
     const totalEarnings = record.baseSalary + record.allowances;
 
     async function handleDownload() {
-        if (!record) return;
+        if (!record || !contentRef.current) return;
         setIsDownloading(true);
         try {
-            await downloadPayslip(record.id, `payslip-${record.period}.pdf`);
-        } catch {
+            const [{ default: html2canvas }, { default: jsPDF }] =
+                await Promise.all([
+                    import("html2canvas-pro"),
+                    import("jspdf"),
+                ]);
+
+            const canvas = await html2canvas(contentRef.current, {
+                scale: 2,
+                backgroundColor: "#ffffff",
+                useCORS: true,
+            });
+
+            const pdf = new jsPDF({
+                orientation: "portrait",
+                unit: "pt",
+                format: "a4",
+            });
+            const pageWidth = pdf.internal.pageSize.getWidth();
+            const imgHeight = (canvas.height * pageWidth) / canvas.width;
+
+            pdf.addImage(
+                canvas.toDataURL("image/png"),
+                "PNG",
+                0,
+                0,
+                pageWidth,
+                imgHeight,
+            );
+            pdf.save(`payslip-${record.period}.pdf`);
+        } catch (err) {
+            console.error("Payslip PDF generation failed:", err);
             toast.error("Couldn't download the payslip. Try again.");
         } finally {
             setIsDownloading(false);
@@ -91,7 +120,7 @@ function PaySlipModal({ open, onOpenChange, record }: PaySlipModalProps) {
                     <span className="sr-only">Close</span>
                 </button>
 
-                <div className="px-6 py-6">
+                <div ref={contentRef} className="px-6 py-6">
                     {/* Header */}
                     <div className="mb-5 flex flex-col items-center gap-1 text-center">
                         <Image

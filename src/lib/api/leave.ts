@@ -7,22 +7,19 @@ import {
 } from "./mappers/leave-mappers";
 import type { LeaveRequest, LeaveStatus } from "@/types/leave";
 
-// --- Raw shapes from the NestJS API ---------------------------------------
-
 interface ApiLeaveRequest {
     id: string;
     employeeId: string;
     leaveTypeId: string;
-    startDate: string; // ISO datetime
-    endDate: string; // ISO datetime
+    startDate: string;
+    endDate: string;
     totalDays: number;
     reason: string;
     status: ApiLeaveStatus;
     rejectionReason: string | null;
     reviewedByUserId: string | null;
     reviewedAt: string | null;
-    createdAt: string; // ISO datetime
-    // Included on findAll/findOne (admin), not on create/cancel/review.
+    createdAt: string;
     employee?: { firstName: string; lastName: string; employeeCode: string };
     leaveType?: { name: string; isPaid: boolean };
 }
@@ -38,8 +35,6 @@ export interface ApiLeaveBalance {
     used: number;
     remaining: number;
 }
-
-// --- Mapping ---------------------------------------------------------------
 
 function toDateString(iso: string): string {
     return iso.slice(0, 10);
@@ -70,18 +65,13 @@ function mapLeaveRequest(raw: ApiLeaveRequest): LeaveRequestWithEmployee {
     };
 }
 
-// --- Self-service (portal) --------------------------------------------------
-
 export interface CreateLeaveRequestPayload {
     leaveTypeId: string;
-    startDate: string; // YYYY-MM-DD
-    endDate: string; // YYYY-MM-DD
+    startDate: string;
+    endDate: string;
     reason: string;
 }
 
-// No employeeId here on purpose — the backend derives it from the JWT.
-// There's no endpoint for HR/Admin to file a request on someone else's
-// behalf; only self-submit + review exist.
 export async function createLeaveRequest(
     payload: CreateLeaveRequestPayload,
 ): Promise<LeaveRequestWithEmployee> {
@@ -149,8 +139,6 @@ export async function cancelLeaveRequest(
     return mapLeaveRequest(raw);
 }
 
-// --- Admin / HR --------------------------------------------------------------
-
 export async function getLeaveRequests(
     query: LeaveQuery = {},
 ): Promise<LeaveListResult> {
@@ -167,8 +155,6 @@ export async function getLeaveRequest(
     return mapLeaveRequest(raw);
 }
 
-// Only a PENDING request can be reviewed; the backend 409s otherwise.
-// rejectionReason is required when rejecting.
 export async function reviewLeaveRequest(
     id: string,
     decision: "APPROVED" | "REJECTED",
@@ -181,9 +167,6 @@ export async function reviewLeaveRequest(
     return mapLeaveRequest(raw);
 }
 
-// HR/Admin filing a leave request on an employee's behalf. Same validation
-// as self-submitted requests (balance check, active leave type, etc.) — it
-// still lands as PENDING and needs a separate review/approval step.
 export interface AdminCreateLeaveRequestPayload extends CreateLeaveRequestPayload {
     employeeId: string;
 }

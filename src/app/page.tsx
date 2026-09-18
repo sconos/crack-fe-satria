@@ -1,5 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
+import { cookies } from "next/headers";
+import { SESSION_HINT_COOKIE, ROLE_HINT_COOKIE, homePathForRole } from "@/lib/session";
 
 type Status = "Active" | "On leave" | "Remote" | "Pending";
 
@@ -90,7 +92,13 @@ const steps = [
     },
 ];
 
-export default function Home() {
+export default async function Home() {
+    const cookieStore = await cookies();
+    const hasSession = cookieStore.has(SESSION_HINT_COOKIE);
+    const dashboardHref = homePathForRole(
+        cookieStore.get(ROLE_HINT_COOKIE)?.value ?? null,
+    );
+
     return (
         <div className="flex min-h-full flex-col">
             {/* Nav */}
@@ -127,17 +135,19 @@ export default function Home() {
                         </a>
                     </nav>
                     <div className="flex items-center gap-3">
+                        {!hasSession && (
+                            <Link
+                                href="/login"
+                                className="hidden text-sm font-medium text-neutral transition-colors hover:text-primary-dark sm:block"
+                            >
+                                Sign in
+                            </Link>
+                        )}
                         <Link
-                            href="/login"
-                            className="hidden text-sm font-medium text-neutral transition-colors hover:text-primary-dark sm:block"
-                        >
-                            Sign in
-                        </Link>
-                        <Link
-                            href="#"
+                            href={hasSession ? dashboardHref : "#"}
                             className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-base-white shadow-sm transition-colors hover:bg-primary-dark"
                         >
-                            Start free trial
+                            {hasSession ? "Go to dashboard" : "Start free trial"}
                         </Link>
                     </div>
                 </div>
@@ -172,10 +182,12 @@ export default function Home() {
                             </p>
                             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                                 <Link
-                                    href="#"
+                                    href={hasSession ? dashboardHref : "#"}
                                     className="inline-flex items-center justify-center rounded-lg bg-primary px-6 py-3 text-sm font-medium text-base-white shadow-sm transition-colors hover:bg-primary-dark"
                                 >
-                                    Start free trial
+                                    {hasSession
+                                        ? "Go to dashboard"
+                                        : "Start free trial"}
                                 </Link>
                                 <Link
                                     href="#workflow"
@@ -184,13 +196,14 @@ export default function Home() {
                                     See how setup works
                                 </Link>
                             </div>
-                            <p className="mt-5 text-xs text-neutral">
-                                No credit card required · 14-day trial · Cancel
-                                anytime
-                            </p>
+                            {!hasSession && (
+                                <p className="mt-5 text-xs text-neutral">
+                                    No credit card required · 14-day trial ·
+                                    Cancel anytime
+                                </p>
+                            )}
                         </div>
 
-                        {/* Signature element: live roster panel, status colors carry meaning */}
                         <div className="relative">
                             <div className="rounded-2xl border border-neutral/10 bg-base-white p-5 shadow-xl shadow-primary-dark/5">
                                 <div className="flex items-center justify-between border-b border-neutral/10 pb-4">
@@ -234,7 +247,6 @@ export default function Home() {
                                     ))}
                                 </ul>
                             </div>
-                            {/* small floating stat card for depth, not decoration for its own sake */}
                             <div className="absolute -bottom-6 -left-6 hidden rounded-xl border border-neutral/10 bg-base-white px-4 py-3 shadow-lg shadow-primary-dark/5 sm:block">
                                 <p className="text-xs text-neutral">
                                     Leave requests this week
@@ -307,7 +319,7 @@ export default function Home() {
                     </div>
                 </section>
 
-                {/* Workflow - genuinely sequential, so numbers earn their place */}
+                {/* Workflow */}
                 <section id="workflow" className="bg-primary-dark">
                     <div className="mx-auto max-w-6xl px-6 py-24">
                         <div className="max-w-xl">
@@ -341,18 +353,21 @@ export default function Home() {
                     <div className="flex flex-col items-start justify-between gap-8 rounded-2xl border border-neutral/10 bg-base-white p-10 shadow-sm sm:flex-row sm:items-center">
                         <div>
                             <h2 className="font-heading text-2xl font-bold text-primary-dark">
-                                Move your team off spreadsheets this week
+                                {hasSession
+                                    ? "Pick up right where you left off"
+                                    : "Move your team off spreadsheets this week"}
                             </h2>
                             <p className="mt-2 text-sm text-neutral">
-                                Set up your directory in an afternoon. No
-                                implementation call required.
+                                {hasSession
+                                    ? "Your team's directory, leave, and payroll are one click away."
+                                    : "Set up your directory in an afternoon. No implementation call required."}
                             </p>
                         </div>
                         <Link
-                            href="#"
+                            href={hasSession ? dashboardHref : "#"}
                             className="inline-flex shrink-0 items-center justify-center rounded-lg bg-primary px-6 py-3 text-sm font-medium text-base-white shadow-sm transition-colors hover:bg-primary-dark"
                         >
-                            Start free trial
+                            {hasSession ? "Go to dashboard" : "Start free trial"}
                         </Link>
                     </div>
                 </section>

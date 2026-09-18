@@ -19,16 +19,13 @@ const portalProfileSchema = z.object({
 
 type PortalProfileFormValues = z.infer<typeof portalProfileSchema>;
 type PortalProfileFormErrors = Partial<Record<keyof PortalProfileFormValues, string>>;
-type PortalProfileFormSubmitValues = PortalProfileFormValues & {
-    avatar: string | null;
-};
 
 export function PortalProfileForm({
     employee,
     onSubmit,
 }: {
     employee: Employee;
-    onSubmit: (values: PortalProfileFormSubmitValues) => Promise<void>;
+    onSubmit: (values: PortalProfileFormValues) => Promise<void>;
 }) {
     const router = useRouter();
     const [values, setValues] = React.useState<PortalProfileFormValues>({
@@ -71,7 +68,7 @@ export function PortalProfileForm({
 
         setIsSubmitting(true);
         try {
-            await onSubmit({ ...values, avatar });
+            await onSubmit(values);
         } catch {
             setFormError("Something went wrong. Please try again.");
         } finally {

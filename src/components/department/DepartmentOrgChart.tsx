@@ -10,8 +10,31 @@ type LayoutNode = HierarchyNode<Department> & {
     height: number;
 };
 
+const VIRTUAL_ROOT_ID = "__virtual_root__";
+
 function escapeHtml(value: string) {
     return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function toChartData(departments: Department[]): Department[] {
+    const virtualRoot: Department = {
+        id: VIRTUAL_ROOT_ID,
+        name: "",
+        code: "",
+        parentId: null,
+        headId: null,
+        headName: null,
+        headInitials: null,
+        employeeCount: 0,
+        status: "active",
+    };
+
+    const nodes = departments.map((d) => ({
+        ...d,
+        parentId: d.parentId ?? VIRTUAL_ROOT_ID,
+    }));
+
+    return [virtualRoot, ...nodes];
 }
 
 export function DepartmentOrgChart({ departments }: { departments: Department[] }) {
@@ -29,9 +52,9 @@ export function DepartmentOrgChart({ departments }: { departments: Department[] 
 
         chartRef.current
             .container(`#${containerId}`)
-            .data(departments)
-            .nodeWidth(() => 232)
-            .nodeHeight(() => 116)
+            .data(toChartData(departments))
+            .nodeWidth((d) => (d.data.id === VIRTUAL_ROOT_ID ? 0 : 232))
+            .nodeHeight((d) => (d.data.id === VIRTUAL_ROOT_ID ? 0 : 116))
             .childrenMargin(() => 50)
             .compactMarginBetween(() => 25)
             .compactMarginPair(() => 40)
@@ -39,6 +62,8 @@ export function DepartmentOrgChart({ departments }: { departments: Department[] 
             .nodeContent((d) => {
                 const node = d as LayoutNode;
                 const dept = node.data;
+                if (dept.id === VIRTUAL_ROOT_ID) return "";
+
                 const statusColor = dept.status === "active" ? "#16a34a" : "#9ca3af";
                 const initials = dept.headInitials ?? "—";
                 const headName = dept.headName ?? "Unassigned";

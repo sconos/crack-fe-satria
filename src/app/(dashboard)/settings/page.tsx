@@ -5,11 +5,13 @@ import { PageHeader } from "@/components/dashboard/PageHeader";
 import { Tabs } from "@/components/ui/Tabs";
 import { LeaveTypesTab } from "@/components/settings/LeaveTypesTab";
 import { HolidaysTab } from "@/components/settings/HolidaysTab";
+import { JobTitlesTab } from "@/components/settings/JobTitlesTab";
 import { useState } from "react";
 
 const tabItems = [
     { value: "leave-types", label: "Leave Types" },
     { value: "holidays", label: "Public Holidays" },
+    { value: "job-titles", label: "Job Titles" },
 ];
 
 export default function SettingsPage() {
@@ -20,12 +22,18 @@ export default function SettingsPage() {
             <div className="flex flex-col gap-6">
                 <PageHeader
                     title="Settings"
-                    description="Configure leave types and the public holiday calendar"
+                    description="Configure leave types, job titles, and the public holiday calendar"
                 />
 
                 <Tabs items={tabItems} value={tab} onValueChange={setTab} />
 
-                {tab === "leave-types" ? <LeaveTypesTab /> : <HolidaysTab />}
+                {tab === "leave-types" ? (
+                    <LeaveTypesTab />
+                ) : tab === "holidays" ? (
+                    <HolidaysTab />
+                ) : (
+                    <JobTitlesTab />
+                )}
             </div>
         </DashboardLayout>
     );

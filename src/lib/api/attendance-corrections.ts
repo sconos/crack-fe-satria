@@ -6,8 +6,6 @@ import type {
     CorrectionStatus,
 } from "@/types/attendance-correction";
 
-// --- Raw shapes from the NestJS API ---------------------------------------
-
 type ApiCorrectionStatus = "PENDING" | "APPROVED" | "REJECTED";
 
 interface ApiAttendance {
@@ -36,8 +34,6 @@ interface ApiPaginatedCorrections {
     data: ApiCorrectionRequest[];
     meta: { total: number; page: number; limit: number; totalPages: number };
 }
-
-// --- Mapping ----------------------------------------------------------------
 
 function toFrontendStatus(status: ApiCorrectionStatus): CorrectionStatus {
     return status.toLowerCase() as CorrectionStatus;
@@ -72,13 +68,11 @@ function mapCorrection(raw: ApiCorrectionRequest): AttendanceCorrectionRequest {
     };
 }
 
-// --- Self-service (portal) --------------------------------------------------
-
 export interface CreateCorrectionPayload {
     attendanceId: string;
-    date: string; // YYYY-MM-DD — the attendance record's own date
-    requestedClockIn?: string | null; // HH:MM
-    requestedClockOut?: string | null; // HH:MM
+    date: string;
+    requestedClockIn?: string | null;
+    requestedClockOut?: string | null;
     reason: string;
 }
 
@@ -102,18 +96,23 @@ export async function createCorrectionRequest(
     return mapCorrection(raw);
 }
 
-// --- Admin / HR --------------------------------------------------------------
+export interface CorrectionListResult {
+    requests: AttendanceCorrectionRequest[];
+    meta: ApiPaginatedCorrections["meta"];
+}
+
+export async function getMyCorrectionRequests(): Promise<CorrectionListResult> {
+    const res = await api.get<ApiPaginatedCorrections>(
+        "/attendance-corrections/me?limit=100",
+    );
+    return { requests: res.data.map(mapCorrection), meta: res.meta };
+}
 
 export interface CorrectionQuery {
     page?: number;
     limit?: number;
     employeeId?: string;
     status?: "pending" | "approved" | "rejected";
-}
-
-export interface CorrectionListResult {
-    requests: AttendanceCorrectionRequest[];
-    meta: ApiPaginatedCorrections["meta"];
 }
 
 export async function getCorrectionRequests(
@@ -132,8 +131,6 @@ export async function getCorrectionRequests(
     return { requests: res.data.map(mapCorrection), meta: res.meta };
 }
 
-// Only a PENDING request can be reviewed (the backend 400s otherwise).
-// rejectionReason is required when rejecting.
 export async function reviewCorrectionRequest(
     id: string,
     status: "approved" | "rejected",

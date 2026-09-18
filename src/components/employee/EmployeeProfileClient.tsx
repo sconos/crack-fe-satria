@@ -10,6 +10,7 @@ import { ProfileLeaveTab } from "@/components/employee/ProfileLeaveTab";
 import { ProfileDocumentsTab } from "@/components/employee/ProfileDocumentsTab";
 import { reviewLeaveRequest } from "@/lib/api/leave";
 import { ApiError } from "@/lib/api/client";
+import { RejectReasonModal } from "@/components/ui/RejectReasonModal";
 import type { EmployeeProfile, LeaveHistoryItem } from "@/types/employee-profile";
 
 const tabItems = [
@@ -27,6 +28,8 @@ export function EmployeeProfileClient({
 }) {
     const [tab, setTab] = useState("overview");
     const [history, setHistory] = useState<LeaveHistoryItem[]>(leaveHistory);
+    const [rejectTargetId, setRejectTargetId] = useState<string | null>(null);
+    const [isRejecting, setIsRejecting] = useState(false);
 
     async function handleApprove(id: string) {
         try {
@@ -44,22 +47,29 @@ export function EmployeeProfileClient({
         }
     }
 
-    async function handleReject(id: string) {
-        const reason = window.prompt("Reason for rejecting this request?");
-        if (!reason || !reason.trim()) return;
+    function handleReject(id: string) {
+        setRejectTargetId(id);
+    }
 
+    async function handleConfirmReject(reason: string) {
+        if (!rejectTargetId) return;
+        const id = rejectTargetId;
+        setIsRejecting(true);
         try {
-            await reviewLeaveRequest(id, "REJECTED", reason.trim());
+            await reviewLeaveRequest(id, "REJECTED", reason);
             setHistory((prev) =>
                 prev.map((h) => (h.id === id ? { ...h, status: "Rejected" } : h)),
             );
             toast.error("Leave request rejected");
+            setRejectTargetId(null);
         } catch (err) {
             toast.error(
                 err instanceof ApiError
                     ? err.message
                     : "Couldn't reject request. Try again.",
             );
+        } finally {
+            setIsRejecting(false);
         }
     }
 
@@ -85,6 +95,16 @@ export function EmployeeProfileClient({
                     <ProfileDocumentsTab employeeId={employee.id} />
                 )}
             </div>
+
+            <RejectReasonModal
+                open={!!rejectTargetId}
+                onOpenChange={(open) => {
+                    if (!open) setRejectTargetId(null);
+                }}
+                title="Reject leave request"
+                onSubmit={handleConfirmReject}
+                isSubmitting={isRejecting}
+            />
         </DashboardLayout>
     );
 }

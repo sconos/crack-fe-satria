@@ -33,16 +33,9 @@ export default function PortalProfileEditPage() {
         address: string;
         emergencyContactName: string;
         emergencyContactPhone: string;
-        avatar: string | null;
     }) {
         try {
-            await updateMyEmployee({
-                phone: values.phone,
-                address: values.address,
-                emergencyContactName: values.emergencyContactName,
-                emergencyContactPhone: values.emergencyContactPhone,
-                avatar: values.avatar, // string | null — null means "cleared", must reach the backend as-is
-            });
+            await updateMyEmployee(values);
             toast.success("Profile updated");
             router.push("/portal/profile");
         } catch {

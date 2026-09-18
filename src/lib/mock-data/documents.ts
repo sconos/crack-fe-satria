@@ -1,6 +1,5 @@
 import type { EmployeeDocument } from "@/types/document";
 
-// TODO: replace with a real fetch/upload API once file storage exists
 export const documents: EmployeeDocument[] = [
     {
         id: "d1",

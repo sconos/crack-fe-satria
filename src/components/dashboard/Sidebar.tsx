@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, ChevronRight, ListChecks, DollarSign, Settings, FileBarChart, LogOut } from "lucide-react";
+import { LayoutDashboard, Users, ChevronRight, ListChecks, CalendarDays, DollarSign, Settings, FileBarChart, FileText, LogOut } from "lucide-react";
 import { cn } from "@/lib/util";
 import { useRouter } from "next/navigation";
 import { logout } from "@/lib/api/auth";
@@ -13,6 +13,8 @@ const navItems = [
     { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { label: "Employees", href: "/employees", icon: Users },
     { label: "Attendances", href: "/attendances", icon: ListChecks },
+    { label: "Leave", href: "/leave", icon: CalendarDays },
+    { label: "Documents", href: "/documents", icon: FileText },
     { label: "Payroll", href: "/payroll", icon: DollarSign },
     { label: "Reports", href: "/reports", icon: FileBarChart },
     { label: "Settings", href: "/settings", icon: Settings },

@@ -1,6 +1,5 @@
 import type { AttendanceRecord } from "@/types/attendance";
 
-// TODO: replace with a real fetch, likely scoped server-side to the
 export const attendanceRecords: AttendanceRecord[] = [
     { id: "a1", employeeId: "1", date: "2026-09-01", clockIn: "08:50", clockOut: "17:35", status: "on-time" },
     { id: "a2", employeeId: "1", date: "2026-09-02", clockIn: "09:14", clockOut: "18:02", status: "late" },

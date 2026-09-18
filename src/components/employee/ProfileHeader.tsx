@@ -58,10 +58,12 @@ export function ProfileHeader({ employee }: { employee: EmployeeProfile }) {
                         </a>
                     </div>
                 </div>
-                <Button variant="outline">
-                    <Pencil className="h-4 w-4" />
-                    Edit profile
-                </Button>
+                <Link href={`/employees/${employee.id}/edit`}>
+                    <Button variant="outline">
+                        <Pencil className="h-4 w-4" />
+                        Edit profile
+                    </Button>
+                </Link>
             </div>
         </div>
     );

@@ -6,6 +6,7 @@ import { PortalLayout } from "@/components/portal/PortalLayout";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/employee/StatusBadge";
 import { Button } from "@/components/ui/Button";
+import { Avatar } from "@/components/ui/Avatar";
 import { toast } from "@/components/ui/Toast";
 import { getMyEmployee } from "@/lib/api/employees";
 import type { Employee } from "@/types/employee";
@@ -123,9 +124,11 @@ export default function PortalProfilePage() {
                     <CardContent className="px-6 py-6">
                         <div className="flex flex-col items-center gap-3 text-center sm:flex-row sm:items-center sm:justify-between sm:text-left">
                             <div className="flex flex-col items-center gap-3 sm:flex-row">
-                                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-primary font-heading text-xl font-bold text-base-white">
-                                    {getInitials(employee.name)}
-                                </div>
+                                <Avatar
+                                    initials={getInitials(employee.name)}
+                                    src={employee.avatar}
+                                    size="xl"
+                                />
                                 <div>
                                     <h1 className="font-heading text-xl font-bold text-primary-dark">
                                         {employee.name}
@@ -160,7 +163,7 @@ export default function PortalProfilePage() {
                     </CardContent>
                 </Card>
 
-                {/* Personal info — self-editable per PRD §8.1 */}
+                {/* Personal info */}
                 <Card>
                     <CardHeader>
                         <CardTitle>Personal information</CardTitle>
@@ -170,7 +173,7 @@ export default function PortalProfilePage() {
                     </CardContent>
                 </Card>
 
-                {/* Emergency contact — self-editable per PRD §8.1 */}
+                {/* Emergency contact */}
                 <Card>
                     <CardHeader>
                         <CardTitle>Emergency contact</CardTitle>

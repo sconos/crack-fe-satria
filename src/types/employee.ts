@@ -13,6 +13,7 @@ export interface Employee {
     department: string;
     departmentId?: string | null;
     role: string;
+    jobTitleId?: string | null;
     employmentType?: EmploymentType;
     manager?: string;
     managerId?: string | null;
@@ -22,4 +23,5 @@ export interface Employee {
     avatar?: string | null;
     emergencyContactName?: string;
     emergencyContactPhone?: string;
+    baseSalary?: number;
 }

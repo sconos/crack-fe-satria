@@ -1,5 +1,9 @@
 // src/lib/api/client.ts
+import { SESSION_HINT_COOKIE, ROLE_HINT_COOKIE } from '@/lib/session';
+
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+
+export const API_BASE_URL = BASE_URL;
 
 interface ApiErrorBody {
   message?: string;
@@ -22,13 +26,18 @@ export function getAccessToken() {
   return accessToken;
 }
 
-const SESSION_HINT_COOKIE = 'has_session';
-
 export function setSessionHint(active: boolean) {
   if (typeof document === 'undefined') return; 
   document.cookie = active
     ? `${SESSION_HINT_COOKIE}=1; path=/; max-age=${60 * 60 * 24 * 7}; samesite=lax`
     : `${SESSION_HINT_COOKIE}=; path=/; max-age=0; samesite=lax`;
+}
+
+export function setRoleHint(role: string | null) {
+  if (typeof document === 'undefined') return;
+  document.cookie = role
+    ? `${ROLE_HINT_COOKIE}=${role}; path=/; max-age=${60 * 60 * 24 * 7}; samesite=lax`
+    : `${ROLE_HINT_COOKIE}=; path=/; max-age=0; samesite=lax`;
 }
 
 interface RequestOptions extends Omit<RequestInit, 'body'> {
@@ -39,16 +48,18 @@ interface RequestOptions extends Omit<RequestInit, 'body'> {
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { body, skipAuth, headers, ...rest } = options;
 
+  const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
+
   const res = await fetch(`${BASE_URL}${path}`, {
     ...rest,
     method: options.method ?? (body ? 'POST' : 'GET'),
     credentials: 'include',
     headers: {
-      'Content-Type': 'application/json',
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       ...(accessToken && !skipAuth ? { Authorization: `Bearer ${accessToken}` } : {}),
       ...headers,
     },
-    body: body ? JSON.stringify(body) : undefined,
+    body: isFormData ? (body as FormData) : body ? JSON.stringify(body) : undefined,
   });
 
   if (res.status === 401 && !skipAuth && path !== '/auth/refresh') {

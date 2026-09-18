@@ -12,9 +12,11 @@ import {
     type EmployeeFormSubmitValues,
 } from "@/components/employee/EmployeeForm";
 import { getDepartments } from "@/lib/api/departments";
+import { getJobTitles } from "@/lib/api/job-titles";
 import { createEmployee, getEmployees } from "@/lib/api/employees";
 import { toast } from "@/components/ui/Toast";
 import type { Department } from "@/types/department";
+import type { JobTitle } from "@/types/job-title";
 import type { Employee } from "@/types/employee";
 
 function TempPasswordDialog({
@@ -76,6 +78,7 @@ function TempPasswordDialog({
 export default function NewEmployeePage() {
     const router = useRouter();
     const [departments, setDepartments] = React.useState<Department[]>([]);
+    const [jobTitles, setJobTitles] = React.useState<JobTitle[]>([]);
     const [employees, setEmployees] = React.useState<Employee[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
     const [created, setCreated] = React.useState<{
@@ -88,13 +91,18 @@ export default function NewEmployeePage() {
 
         async function loadFormData() {
             try {
-                const [{ departments: fetchedDepartments }, { employees: fetchedEmployees }] =
-                    await Promise.all([
-                        getDepartments({ limit: 100 }),
-                        getEmployees({ limit: 100 }),
-                    ]);
+                const [
+                    { departments: fetchedDepartments },
+                    fetchedJobTitles,
+                    { employees: fetchedEmployees },
+                ] = await Promise.all([
+                    getDepartments({ limit: 100 }),
+                    getJobTitles(),
+                    getEmployees({ limit: 100 }),
+                ]);
                 if (!cancelled) {
                     setDepartments(fetchedDepartments);
+                    setJobTitles(fetchedJobTitles);
                     setEmployees(fetchedEmployees);
                 }
             } catch {
@@ -135,6 +143,7 @@ export default function NewEmployeePage() {
                         ) : (
                             <EmployeeForm
                                 departments={departments}
+                                jobTitles={jobTitles}
                                 employees={employees}
                                 onSubmit={handleSubmit}
                                 submitLabel="Add Employee"

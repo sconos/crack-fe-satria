@@ -10,9 +10,11 @@ import {
     type EmployeeFormSubmitValues,
 } from "@/components/employee/EmployeeForm";
 import { getDepartments } from "@/lib/api/departments";
+import { getJobTitles } from "@/lib/api/job-titles";
 import { getEmployees, updateEmployee } from "@/lib/api/employees";
 import { toast } from "@/components/ui/Toast";
 import type { Department } from "@/types/department";
+import type { JobTitle } from "@/types/job-title";
 import type { Employee } from "@/types/employee";
 
 interface EditEmployeeClientProps {
@@ -22,6 +24,7 @@ interface EditEmployeeClientProps {
 export function EditEmployeeClient({ employee }: EditEmployeeClientProps) {
     const router = useRouter();
     const [departments, setDepartments] = React.useState<Department[]>([]);
+    const [jobTitles, setJobTitles] = React.useState<JobTitle[]>([]);
     const [employees, setEmployees] = React.useState<Employee[]>([]);
     const [isLoadingForm, setIsLoadingForm] = React.useState(true);
 
@@ -30,13 +33,18 @@ export function EditEmployeeClient({ employee }: EditEmployeeClientProps) {
 
         async function loadFormData() {
             try {
-                const [{ departments: fetchedDepartments }, { employees: fetchedEmployees }] =
-                    await Promise.all([
-                        getDepartments({ limit: 100 }),
-                        getEmployees({ limit: 1000 }),
-                    ]);
+                const [
+                    { departments: fetchedDepartments },
+                    fetchedJobTitles,
+                    { employees: fetchedEmployees },
+                ] = await Promise.all([
+                    getDepartments({ limit: 100 }),
+                    getJobTitles(),
+                    getEmployees({ limit: 1000 }),
+                ]);
                 if (!cancelled) {
                     setDepartments(fetchedDepartments);
+                    setJobTitles(fetchedJobTitles);
                     setEmployees(fetchedEmployees);
                 }
             } catch {
@@ -74,6 +82,7 @@ export function EditEmployeeClient({ employee }: EditEmployeeClientProps) {
                         ) : (
                             <EmployeeForm
                                 departments={departments}
+                                jobTitles={jobTitles}
                                 employees={employees}
                                 initialValues={employee}
                                 onSubmit={handleSubmit}

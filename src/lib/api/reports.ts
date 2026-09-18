@@ -2,8 +2,6 @@
 import { api } from "./client";
 import type { HeadcountRow, LeaveUtilizationRow } from "@/types/report";
 
-// --- Headcount --------------------------------------------------------------
-
 interface ApiHeadcountRow {
     departmentId: string | null;
     departmentName: string;
@@ -40,10 +38,6 @@ export async function getHeadcountReport(): Promise<{
         totalHeadcount: res.totalHeadcount,
     };
 }
-
-// --- Leave utilization -------------------------------------------------------
-// Field names already match the frontend type field-for-field — no mapper
-// needed here, just the request/year plumbing.
 
 interface ApiLeaveUtilizationResponse {
     year: number;

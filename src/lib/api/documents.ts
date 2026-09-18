@@ -9,8 +9,6 @@ import {
 } from "./mappers/document-mappers";
 import type { DocumentStatus, DocumentType, EmployeeDocument } from "@/types/document";
 
-// --- Raw shapes from the NestJS API ---------------------------------------
-
 interface ApiDocument {
     id: string;
     employeeId: string;
@@ -29,8 +27,6 @@ interface ApiPaginatedDocuments {
     data: ApiDocument[];
     meta: { total: number; page: number; limit: number; totalPages: number };
 }
-
-// --- Mapping ---------------------------------------------------------------
 
 export interface EmployeeDocumentWithDetail extends EmployeeDocument {
     employeeName?: string;
@@ -53,8 +49,6 @@ function mapDocument(raw: ApiDocument): EmployeeDocumentWithDetail {
         rejectionReason: raw.rejectionReason,
     };
 }
-
-// --- Queries ---------------------------------------------------------------
 
 export interface DocumentQuery {
     page?: number;
@@ -87,7 +81,6 @@ function buildQueryString(query: DocumentQuery): string {
     return qs ? `?${qs}` : "";
 }
 
-// Self-service: the logged-in employee's own documents.
 export async function getMyDocuments(
     query: Omit<DocumentQuery, "employeeId"> = {},
 ): Promise<DocumentListResult> {
@@ -97,7 +90,6 @@ export async function getMyDocuments(
     return { documents: res.data.map(mapDocument), meta: res.meta };
 }
 
-// ADMIN/HR: every employee's documents.
 export async function getDocuments(
     query: DocumentQuery = {},
 ): Promise<DocumentListResult> {
@@ -113,12 +105,6 @@ export async function getDocument(
     const raw = await api.get<ApiDocument>(`/documents/${id}`);
     return mapDocument(raw);
 }
-
-// --- Upload ------------------------------------------------------------------
-// multipart/form-data, not JSON — api.post always JSON.stringifies its body
-// and sets a JSON content-type, so this bypasses it and builds the request
-// by hand. The browser sets the multipart boundary itself; don't set
-// Content-Type manually or the boundary gets lost.
 
 export async function uploadDocument(
     file: File,
@@ -147,8 +133,6 @@ export async function uploadDocument(
     return mapDocument(raw);
 }
 
-// --- Review (ADMIN/HR) -------------------------------------------------------
-
 export async function reviewDocument(
     id: string,
     decision: "VERIFIED" | "REJECTED",
@@ -160,10 +144,6 @@ export async function reviewDocument(
     });
     return mapDocument(raw);
 }
-
-// --- Download ------------------------------------------------------------
-// Streams the original file, not JSON — same pattern as payroll's payslip
-// PDF download.
 
 export async function downloadDocument(
     id: string,

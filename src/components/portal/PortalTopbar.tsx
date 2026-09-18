@@ -1,4 +1,5 @@
-import { Bell, Menu } from "lucide-react";
+import { Menu } from "lucide-react";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 
 interface PortalTopbarProps {
     title?: string;
@@ -21,12 +22,7 @@ function PortalTopbar({ title, onMenuClick }: PortalTopbarProps) {
                     {title}
                 </p>
             </div>
-            <button
-                type="button"
-                className="rounded-lg p-1.5 text-neutral transition-colors hover:bg-primary-tint hover:text-primary-dark"
-            >
-                <Bell className="h-5 w-5" />
-            </button>
+            <NotificationBell />
         </header>
     );
 }

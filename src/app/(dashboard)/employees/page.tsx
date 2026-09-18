@@ -92,7 +92,6 @@ function EmployeesPageContent() {
         if (!employee) return;
 
         if (employee.status === "Inactive") {
-            // Reactivating is low-stakes — no confirmation needed
             try {
                 const updated = await updateEmployeeStatus(id, "Active");
                 setEmployees((prev) =>
@@ -271,8 +270,6 @@ function EmployeesPageContent() {
 }
 
 export default function EmployeesPage() {
-    // useSearchParams needs a Suspense boundary in the App Router,
-    // or Next.js will de-opt this whole route to fully client-rendered.
     return (
         <Suspense fallback={null}>
             <EmployeesPageContent />

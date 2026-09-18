@@ -7,22 +7,11 @@ import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
-import { AvatarUpload } from "@/components/employee/AvatarUpload";
 import { EmployeePickerField } from "@/components/employee/EmployeePickerField";
 import type { Employee } from "@/types/employee";
 import type { Department } from "@/types/department";
-
-const roles = [
-    "Frontend Developer",
-    "Backend Developer",
-    "Fullstack Developer",
-    "HR Manager",
-    "HR Staff",
-    "Sales Executive",
-    "Finance Manager",
-    "Marketing Manager",
-    "Operations Manager",
-];
+import type { JobTitle } from "@/types/job-title";
+import { ApiError } from "@/lib/api/client";
 
 const employmentTypes = ["Full-time", "Part-time", "Contract"] as const;
 
@@ -34,25 +23,24 @@ const employeeSchema = z.object({
     nationalId: z.string().min(1, "National ID is required"),
     address: z.string().min(1, "Address is required"),
     departmentId: z.string().min(1, "Department is required"),
-    role: z.string().min(1, "Role is required"),
+    jobTitleId: z.string().min(1, "Job title is required"),
     employmentType: z.enum(["Full-time", "Part-time", "Contract"], {
         error: () => ({ message: "Employment type is required" }),
     }),
     workLocation: z.string().optional(),
     joinDate: z.string().min(1, "Join date is required"),
-    emergencyContactName: z.string().min(1, "Emergency contact name is required"),
-    emergencyContactPhone: z.string().min(1, "Emergency contact phone is required"),
 });
 
 type EmployeeFormValues = z.infer<typeof employeeSchema>;
 type EmployeeFormErrors = Partial<Record<keyof EmployeeFormValues, string>>;
 type EmployeeFormSubmitValues = EmployeeFormValues & {
-    avatar: string | null;
     managerId: string | null;
+    baseSalary: number;
 };
 
 interface EmployeeFormProps {
     departments: Department[];
+    jobTitles: JobTitle[];
     employees: Employee[];
     initialValues?: Partial<Employee>;
     onSubmit: (values: EmployeeFormSubmitValues) => Promise<void>;
@@ -86,6 +74,7 @@ function getDescendantIds(employees: Employee[], id: string): Set<string> {
 
 function EmployeeForm({
     departments,
+    jobTitles,
     employees,
     initialValues,
     onSubmit,
@@ -99,20 +88,20 @@ function EmployeeForm({
         nationalId: initialValues?.nationalId ?? "",
         address: initialValues?.address ?? "",
         departmentId: initialValues?.departmentId ?? "",
-        role: initialValues?.role ?? "",
+        jobTitleId: initialValues?.jobTitleId ?? "",
         employmentType: initialValues?.employmentType ?? "Full-time",
         workLocation: initialValues?.workLocation ?? "",
         joinDate: initialValues?.joinDate ?? "",
-        emergencyContactName: initialValues?.emergencyContactName ?? "",
-        emergencyContactPhone: initialValues?.emergencyContactPhone ?? "",
     });
-
-    const [avatar, setAvatar] = React.useState<string | null>(
-        initialValues?.avatar ?? null,
-    );
 
     const [managerId, setManagerId] = React.useState<string>(
         initialValues?.managerId ?? "",
+    );
+
+    const [baseSalary, setBaseSalary] = React.useState<string>(
+        initialValues?.baseSalary !== undefined
+            ? String(initialValues.baseSalary)
+            : "0",
     );
 
     const [errors, setErrors] = React.useState<EmployeeFormErrors>({});
@@ -155,9 +144,27 @@ function EmployeeForm({
 
         setIsSubmitting(true);
         try {
-            await onSubmit({ ...values, avatar, managerId: managerId || null });
-        } catch {
-            setFormError("Something went wrong. Please try again.");
+            await onSubmit({
+                ...values,
+                managerId: managerId || null,
+                baseSalary: baseSalary === "" ? 0 : Number(baseSalary),
+            });
+        } catch (err) {
+            console.error("Employee form submit failed:", err);
+            let message = "Something went wrong. Please try again.";
+            if (err instanceof ApiError) {
+                const body = err.body as { message?: string | string[] } | null;
+                if (Array.isArray(body?.message)) {
+                    message = body.message.join(", ");
+                } else if (typeof body?.message === "string") {
+                    message = body.message;
+                } else if (err.message) {
+                    message = err.message;
+                }
+            } else if (err instanceof Error && err.message) {
+                message = err.message;
+            }
+            setFormError(message);
         } finally {
             setIsSubmitting(false);
         }
@@ -168,16 +175,10 @@ function EmployeeForm({
             {formError && <Alert variant="danger">{formError}</Alert>}
 
             <Alert variant="info">
-                Avatar and emergency contact are saved to the
-                employee&apos;s self-service profile, not from this form
-                yet.
+                Avatar and emergency contact aren&apos;t set here — the
+                employee fills those in themselves from their own profile
+                after they log in.
             </Alert>
-
-            <AvatarUpload
-                name={values.name || "New employee"}
-                value={avatar}
-                onChange={setAvatar}
-            />
 
             {/* Row 1 — Name + Email */}
             <div className="grid gap-4 sm:grid-cols-2">
@@ -304,22 +305,22 @@ function EmployeeForm({
                     </Select>
                 </FormField>
 
-                <FormField
-                    label="Role"
-                    htmlFor="role"
+                                <FormField
+                    label="Job title"
+                    htmlFor="jobTitleId"
                     required
-                    error={errors.role}
+                    error={errors.jobTitleId}
                 >
                     <Select
-                        id="role"
-                        placeholder="Select role"
-                        error={!!errors.role}
-                        value={values.role}
-                        onChange={(e) => handleChange("role", e.target.value)}
+                        id="jobTitleId"
+                        placeholder="Select job title"
+                        error={!!errors.jobTitleId}
+                        value={values.jobTitleId}
+                        onChange={(e) => handleChange("jobTitleId", e.target.value)}
                     >
-                        {roles.map((r) => (
-                            <option key={r} value={r}>
-                                {r}
+                        {jobTitles.map((jt) => (
+                            <option key={jt.id} value={jt.id}>
+                                {jt.name}
                             </option>
                         ))}
                     </Select>
@@ -368,6 +369,25 @@ function EmployeeForm({
                 </FormField>
             </div>
 
+            {/* Row 4.5 — Base salary */}
+            <div className="grid gap-4 sm:grid-cols-2">
+                <FormField
+                    label="Base salary"
+                    htmlFor="baseSalary"
+                    helperText="Monthly, in IDR. Used to generate payroll — defaults to 0 if left blank."
+                >
+                    <Input
+                        id="baseSalary"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="e.g. 8000000"
+                        value={baseSalary}
+                        onChange={(e) => setBaseSalary(e.target.value)}
+                    />
+                </FormField>
+            </div>
+
             {/* Row 5 — Manager + Work location */}
             <div className="grid gap-4 sm:grid-cols-2">
                 <EmployeePickerField
@@ -387,44 +407,6 @@ function EmployeeForm({
                         value={values.workLocation}
                         onChange={(e) =>
                             handleChange("workLocation", e.target.value)
-                        }
-                    />
-                </FormField>
-            </div>
-
-            {/* Row 6 — Emergency contact */}
-            <div className="grid gap-4 sm:grid-cols-2 border-t border-neutral/10 pt-4">
-                <FormField
-                    label="Emergency contact name"
-                    htmlFor="emergencyContactName"
-                    required
-                    error={errors.emergencyContactName}
-                >
-                    <Input
-                        id="emergencyContactName"
-                        placeholder="e.g. Siti Wijaya"
-                        error={!!errors.emergencyContactName}
-                        value={values.emergencyContactName}
-                        onChange={(e) =>
-                            handleChange("emergencyContactName", e.target.value)
-                        }
-                    />
-                </FormField>
-
-                <FormField
-                    label="Emergency contact phone"
-                    htmlFor="emergencyContactPhone"
-                    required
-                    error={errors.emergencyContactPhone}
-                >
-                    <Input
-                        id="emergencyContactPhone"
-                        type="tel"
-                        placeholder="e.g. +62 813 9876 5432"
-                        error={!!errors.emergencyContactPhone}
-                        value={values.emergencyContactPhone}
-                        onChange={(e) =>
-                            handleChange("emergencyContactPhone", e.target.value)
                         }
                     />
                 </FormField>

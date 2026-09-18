@@ -1,19 +1,22 @@
 // src/proxy.ts
 import { NextRequest, NextResponse } from 'next/server';
+import { SESSION_HINT_COOKIE, ROLE_HINT_COOKIE, homePathForRole } from './lib/session';
 
-const SESSION_HINT_COOKIE = 'has_session';
-
-const PUBLIC_PATHS = ['/login', '/forgot-password', '/reset-password'];
+const AUTH_PATHS = ['/login', '/forgot-password', '/reset-password'];
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const hasSession = request.cookies.has(SESSION_HINT_COOKIE);
-  const isPublicPath = PUBLIC_PATHS.includes(pathname);
 
-  if (isPublicPath) {
+  if (AUTH_PATHS.includes(pathname)) {
     if (hasSession) {
-      return NextResponse.redirect(new URL('/', request.url));
+      const role = request.cookies.get(ROLE_HINT_COOKIE)?.value ?? null;
+      return NextResponse.redirect(new URL(homePathForRole(role), request.url));
     }
+    return NextResponse.next();
+  }
+
+  if (pathname === '/') {
     return NextResponse.next();
   }
 

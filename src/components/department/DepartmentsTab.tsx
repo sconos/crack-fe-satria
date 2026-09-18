@@ -107,20 +107,15 @@ export function DepartmentsTab({
                     )}
                 </div>
 
-                {view === "list" ? (
-                    filteredDepartments.length > 0 ? (
-                        <DepartmentTable
-                            departments={filteredDepartments}
-                            onToggleStatus={onToggleDepartmentStatus}
-                        />
-                    ) : (
-                        <p className="px-5 py-10 text-center text-sm text-neutral">
-                            No departments match &ldquo;{query}&rdquo;.
-                        </p>
-                    )
-                ) : (
+                <div className={view === "list" ? "" : "hidden"}>
+                    <DepartmentTable
+                        departments={filteredDepartments}
+                        onToggleStatus={onToggleDepartmentStatus}
+                    />
+                </div>
+                <div className={view === "chart" ? "" : "hidden"}>
                     <DepartmentOrgChart departments={departments} />
-                )}
+                </div>
             </div>
         </div>
     );

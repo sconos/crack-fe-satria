@@ -3,52 +3,11 @@
 import * as React from "react";
 import { PortalLayout } from "@/components/portal/PortalLayout";
 import { Card, CardContent } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { PaySlipModal } from "@/components/payroll/PaySlipModal";
-import type { PayrollRecord } from "@/types/payroll";
-
-const mockPayslips: PayrollRecord[] = [
-    {
-        id: "ps1",
-        employeeId: "1",
-        employeeName: "Satria Wijaya",
-        department: "Engineering",
-        role: "Frontend Developer",
-        period: "2025-01",
-        baseSalary: 8000000,
-        allowances: 1500000,
-        deductions: 500000,
-        netPay: 9000000,
-        status: "Paid",
-    },
-    {
-        id: "ps2",
-        employeeId: "1",
-        employeeName: "Satria Wijaya",
-        department: "Engineering",
-        role: "Frontend Developer",
-        period: "2024-12",
-        baseSalary: 8000000,
-        allowances: 1500000,
-        deductions: 500000,
-        netPay: 9000000,
-        status: "Paid",
-    },
-    {
-        id: "ps3",
-        employeeId: "1",
-        employeeName: "Satria Wijaya",
-        department: "Engineering",
-        role: "Frontend Developer",
-        period: "2024-11",
-        baseSalary: 8000000,
-        allowances: 1200000,
-        deductions: 450000,
-        netPay: 8750000,
-        status: "Paid",
-    },
-];
+import { PayrollStatusBadge } from "@/components/payroll/PayrollStatusBadge";
+import { toast } from "@/components/ui/Toast";
+import { getMyPayroll, type PayrollRecordWithDetail } from "@/lib/api/payroll";
 
 function formatRupiah(amount: number) {
     return new Intl.NumberFormat("id-ID", {
@@ -68,7 +27,29 @@ function formatPeriod(period: string) {
 }
 
 export default function PortalPayslipsPage() {
-    const [selected, setSelected] = React.useState<PayrollRecord | null>(null);
+    const [payslips, setPayslips] = React.useState<PayrollRecordWithDetail[]>([]);
+    const [isLoading, setIsLoading] = React.useState(true);
+    const [selected, setSelected] = React.useState<PayrollRecordWithDetail | null>(null);
+
+    React.useEffect(() => {
+        let cancelled = false;
+
+        async function load() {
+            try {
+                const { records } = await getMyPayroll({ limit: 100 });
+                if (!cancelled) setPayslips(records);
+            } catch {
+                if (!cancelled) toast.error("Couldn't load your pay slips.");
+            } finally {
+                if (!cancelled) setIsLoading(false);
+            }
+        }
+
+        load();
+        return () => {
+            cancelled = true;
+        };
+    }, []);
 
     return (
         <PortalLayout title="My Pay Slips">
@@ -83,37 +64,43 @@ export default function PortalPayslipsPage() {
                 </div>
 
                 <div className="flex flex-col gap-3">
-                    {mockPayslips.map((slip) => (
-                        <Card key={slip.id}>
-                            <CardContent className="px-5 py-4">
-                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                    <div className="flex flex-col gap-0.5">
-                                        <p className="font-heading text-sm font-semibold text-primary-dark">
-                                            {formatPeriod(slip.period)}
-                                        </p>
-                                        <p className="font-body text-xs text-neutral">
-                                            Net Pay:{" "}
-                                            <span className="font-semibold text-primary">
-                                                {formatRupiah(slip.netPay)}
-                                            </span>
-                                        </p>
+                    {isLoading ? (
+                        <p className="text-sm text-neutral">Loading...</p>
+                    ) : payslips.length === 0 ? (
+                        <p className="text-sm text-neutral">
+                            No pay slips yet.
+                        </p>
+                    ) : (
+                        payslips.map((slip) => (
+                            <Card key={slip.id}>
+                                <CardContent className="px-5 py-4">
+                                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                        <div className="flex flex-col gap-0.5">
+                                            <p className="font-heading text-sm font-semibold text-primary-dark">
+                                                {formatPeriod(slip.period)}
+                                            </p>
+                                            <p className="font-body text-xs text-neutral">
+                                                Net Pay:{" "}
+                                                <span className="font-semibold text-primary">
+                                                    {formatRupiah(slip.netPay)}
+                                                </span>
+                                            </p>
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            <PayrollStatusBadge status={slip.status} />
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => setSelected(slip)}
+                                            >
+                                                View
+                                            </Button>
+                                        </div>
                                     </div>
-                                    <div className="flex items-center gap-3">
-                                        <Badge variant="success" dot>
-                                            Paid
-                                        </Badge>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => setSelected(slip)}
-                                        >
-                                            View
-                                        </Button>
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    ))}
+                                </CardContent>
+                            </Card>
+                        ))
+                    )}
                 </div>
             </div>
 

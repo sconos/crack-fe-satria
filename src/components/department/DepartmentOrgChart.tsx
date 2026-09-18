@@ -12,8 +12,67 @@ type LayoutNode = HierarchyNode<Department> & {
 
 const VIRTUAL_ROOT_ID = "__virtual_root__";
 
+const NODE_WIDTH = 260;
+const NODE_HEIGHT = 118;
+const ROOT_SIZE = 1;
+
+const STATUS_COLORS: Record<Department["status"], string> = {
+    active: "#16a34a",
+    inactive: "#9ca3af",
+};
+
+function nodeHtml(data: Department): string {
+    if (data.id === VIRTUAL_ROOT_ID) {
+        // Invisible anchor so multiple top-level departments can share one root.
+        return `<div style="width:${ROOT_SIZE}px;height:${ROOT_SIZE}px;"></div>`;
+    }
+
+    const statusColor = STATUS_COLORS[data.status];
+    const statusLabel = data.status === "active" ? "Active" : "Inactive";
+    const head = data.headName
+        ? escapeHtml(data.headName)
+        : `<span style="font-style:italic;color:#9ca3af;">Unassigned</span>`;
+
+    return `
+        <div style="
+            width:${NODE_WIDTH - 4}px;
+            box-sizing:border-box;
+            border:1px solid #e5e7eb;
+            border-radius:12px;
+            background:#ffffff;
+            padding:14px 16px;
+            font-family:inherit;
+            box-shadow:0 1px 2px rgba(0,0,0,0.04);
+        ">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+                <p style="margin:0;font-size:14px;font-weight:600;color:#064e3b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                    ${escapeHtml(data.name)}
+                </p>
+                <span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:500;color:#374151;white-space:nowrap;">
+                    <span style="width:6px;height:6px;border-radius:50%;background:${statusColor};display:inline-block;"></span>
+                    ${statusLabel}
+                </span>
+            </div>
+            <p style="margin:2px 0 10px;font-size:11px;color:#9ca3af;">${escapeHtml(data.code)}</p>
+            <div style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:#4b5563;">
+                <div style="display:flex;justify-content:space-between;">
+                    <span>Head</span>
+                    <span style="color:#111827;">${head}</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;">
+                    <span>Employees</span>
+                    <span style="color:#111827;">${data.employeeCount}</span>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
 function escapeHtml(value: string) {
-    return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    return value
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
 }
 
 function toChartData(departments: Department[]): Department[] {
@@ -37,7 +96,11 @@ function toChartData(departments: Department[]): Department[] {
     return [virtualRoot, ...nodes];
 }
 
-export function DepartmentOrgChart({ departments }: { departments: Department[] }) {
+export function DepartmentOrgChart({
+    departments,
+}: {
+    departments: Department[];
+}) {
     const rawId = useId();
     const containerId = `org-chart-${rawId.replace(/:/g, "")}`;
     const containerRef = useRef<HTMLDivElement>(null);
@@ -53,42 +116,21 @@ export function DepartmentOrgChart({ departments }: { departments: Department[] 
         chartRef.current
             .container(`#${containerId}`)
             .data(toChartData(departments))
-            .nodeWidth((d) => (d.data.id === VIRTUAL_ROOT_ID ? 0 : 232))
-            .nodeHeight((d) => (d.data.id === VIRTUAL_ROOT_ID ? 0 : 116))
+            .nodeWidth(() => NODE_WIDTH)
+            .nodeHeight((d) =>
+                d.data.id === VIRTUAL_ROOT_ID ? ROOT_SIZE : NODE_HEIGHT,
+            )
             .childrenMargin(() => 50)
             .compactMarginBetween(() => 25)
-            .compactMarginPair(() => 40)
-            .neighbourMargin(() => 25)
-            .nodeContent((d) => {
-                const node = d as LayoutNode;
-                const dept = node.data;
-                if (dept.id === VIRTUAL_ROOT_ID) return "";
-
-                const statusColor = dept.status === "active" ? "#16a34a" : "#9ca3af";
-                const initials = dept.headInitials ?? "—";
-                const headName = dept.headName ?? "Unassigned";
-
-                return `
-                    <div style="width:${node.width}px;height:${node.height}px;padding:12px;box-sizing:border-box;">
-                        <div style="border:1px solid rgba(107,114,128,0.15);border-radius:12px;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,0.05);padding:12px;height:100%;box-sizing:border-box;font-family:inherit;">
-                            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-                                <p style="margin:0;font-weight:600;font-size:13px;color:#1f2937;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(dept.name)}</p>
-                                <span style="flex-shrink:0;font-size:11px;font-weight:600;padding:2px 8px;border-radius:9999px;background:${statusColor}1a;color:${statusColor};">${dept.employeeCount}</span>
-                            </div>
-                            <div style="margin-top:10px;display:flex;align-items:center;gap:8px;">
-                                <span style="width:28px;height:28px;flex-shrink:0;display:flex;align-items:center;justify-content:center;border-radius:9999px;background:#eef2ff;font-size:11px;font-weight:600;color:#1f2937;">${escapeHtml(initials)}</span>
-                                <div style="min-width:0;">
-                                    <p style="margin:0;font-size:12px;font-weight:500;color:#1f2937;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(headName)}</p>
-                                    <p style="margin:0;font-size:11px;color:#6b7280;">Department head</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            })
+            .compactMarginPair(() => 30)
+            .nodeContent((d) => nodeHtml(d.data))
             .render();
 
         chartRef.current.fit();
+
+        return () => {
+            chartRef.current = null;
+        };
     }, [departments, containerId]);
 
     if (departments.length === 0) {
@@ -101,7 +143,11 @@ export function DepartmentOrgChart({ departments }: { departments: Department[] 
 
     return (
         <div className="h-[600px] w-full overflow-hidden rounded-xl border border-neutral/15 bg-base-white">
-            <div id={containerId} ref={containerRef} className="h-full w-full" />
+            <div
+                id={containerId}
+                ref={containerRef}
+                className="h-full w-full"
+            />
         </div>
     );
 }

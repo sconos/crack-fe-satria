@@ -58,7 +58,7 @@ function mapDepartment(raw: ApiDepartment): Department {
         headId: raw.headId,
         headName,
         headInitials: headName ? initialsFromName(headName) : null,
-        employeeCount: raw._count.employees,
+        employeeCount: raw._count?.employees ?? 0,
         location: raw.location ?? undefined,
         status: toFrontendStatus(raw.status),
     };

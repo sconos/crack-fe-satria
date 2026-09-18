@@ -34,6 +34,7 @@ import {
 import { getDepartments } from "@/lib/api/departments";
 import { todayDateString } from "@/lib/api/mappers/attendance-mappers";
 import { ApiError } from "@/lib/api/client";
+import { exportToCsv } from "@/lib/csv";
 import type { AttendanceStatus } from "@/types/attendance";
 import type { AttendanceCorrectionRequest } from "@/types/attendance-correction";
 import type { Department } from "@/types/department";
@@ -233,6 +234,33 @@ export default function AttendancePage() {
         });
     }, [records, search, department]);
 
+    function handleExportCsv() {
+        if (filteredRecords.length === 0) {
+            toast.error("There's nothing to export yet.");
+            return;
+        }
+
+        const statusLabel: Record<AttendanceStatus, string> = {
+            "on-time": "On time",
+            late: "Late",
+            absent: "Absent",
+            "on-leave": "On leave",
+        };
+
+        const rows = filteredRecords.map((r) => ({
+            Employee: r.employeeName ?? "—",
+            "Employee code": r.employeeCode ?? "—",
+            Department: r.departmentName ?? "—",
+            Date: r.date,
+            "Clock in": r.clockIn ?? "—",
+            "Clock out": r.clockOut ?? "—",
+            Hours: computeHours(r.clockIn, r.clockOut),
+            Status: statusLabel[r.status],
+        }));
+
+        exportToCsv(`attendance-${today}.csv`, rows);
+    }
+
     const stats = React.useMemo(() => {
         const present = records.filter((r) => r.status === "on-time").length;
         const late = records.filter((r) => r.status === "late").length;
@@ -247,7 +275,11 @@ export default function AttendancePage() {
                 <PageHeader
                     title="Attendance"
                     description="Track daily attendance and review correction requests"
-                    action={<Button variant="outline">Export CSV</Button>}
+                    action={
+                        <Button variant="outline" onClick={handleExportCsv}>
+                            Export CSV
+                        </Button>
+                    }
                 />
 
                 {/* Stats */}

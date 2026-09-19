@@ -2,9 +2,10 @@
 
 [![Review Assignment Due Date](https://classroom.github.com/assets/deadline-readme-button-22041afd0340ce965d47ae6ef1cefeee28c7c493a6346c4f15d667ab976d596c.svg)](https://classroom.github.com/a/wEWvHaXF)
 
-**Live:** [www.koru-hrm.site](https://www.koru-hrm.site)
+## Deployments
 
-**Backend API:** [koru-backend](https://github.com/sconos/crack-be-satria) — see that repo for API docs and environment setup.
+- **Frontend:** [www.koru-hrm.site](https://www.koru-hrm.site)
+- **Backend API:** [api.koru-hrm.site](https://api.koru-hrm.site) — see the [koru-backend](https://github.com/sconos/crack-be-satria) repo for API docs and environment setup.
 
 Koru HRM is a modern human resource management frontend built with Next.js. It provides a complete people operations experience for managing employees, attendance, leave, documents, payroll, reports, and system settings from a single dashboard.
 
@@ -32,6 +33,16 @@ This application is designed for HR teams and employees to:
 - Reports and HR metrics
 - Settings for holidays, leave types, and job titles
 - Employee portal experience for self-service access
+
+## Screenshots
+
+| Dashboard | Employee Directory |
+|---|---|
+| ![Dashboard](./docs/admin-dashboard.png) | ![Employee Directory](./docs/employee.png) |
+
+| Attendance | Employee Self Service |
+|---|---|
+| ![Attendance](./docs/attendance.png) | ![Employee Dashboard](./docs/employee-dashboard.png)|
 
 ## Tech Stack
 
